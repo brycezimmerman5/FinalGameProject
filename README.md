@@ -3,5 +3,5 @@ Final game project for CS596
 
 Group Members
 - Bryce Zimmerman
-- Isabella
-- X
+- Isabella Bardales  
+- Xavier A
