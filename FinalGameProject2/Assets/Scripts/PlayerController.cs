@@ -4,6 +4,8 @@ using UnityEngine.AI;
 public class PlayerController : MonoBehaviour
 {
     private NavMeshAgent agent;
+    private Animator animator;
+
     public LayerMask groundLayer;
     public LayerMask enemyLayer;
 
@@ -16,19 +18,35 @@ public class PlayerController : MonoBehaviour
     public float attackCooldown = 1.0f;
     private float lastAttackTime;
     private bool isAttacking = false;
+    public Transform attackPoint;
 
     [Header("Visual FX")]
     public GameObject aoeEffectPrefab;
 
+    [Header("Dash Settings")]
+    public float dashDistance = 5f;
+    public float dashDuration = 0.25f;
+    public float dashCooldown = 2f;
+
+    private float lastDashTime;
+    private bool isDashing = false;
+
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
+        animator = GetComponent<Animator>();
     }
 
     void Update()
     {
-        HandleMovement();
+        if (!isAttacking)
+        {
+            HandleMovement();
+        }
+
         HandleAutoAttackInput();
+        UpdateAnimationStates();
+        HandleDashInput();
     }
 
     void HandleMovement()
@@ -51,24 +69,68 @@ public class PlayerController : MonoBehaviour
 
     void HandleAutoAttackInput()
     {
-        if (Input.GetKeyDown(KeyCode.Space) && Time.time - lastAttackTime >= attackCooldown)
+        if (Input.GetKeyDown(KeyCode.Q) && Time.time - lastAttackTime >= attackCooldown && !isAttacking)
         {
             lastAttackTime = Time.time;
             isAttacking = true;
 
-            // 🔁 Play attack animation here
-            // GetComponent<Animator>().SetTrigger("Attack");
+            // Stop movement during attack
+            agent.isStopped = true;
+
+            // 🔁 Play attack animation
+            animator.SetTrigger("Attack");
 
             Debug.Log("Attack triggered — waiting for animation to hit...");
         }
     }
+    void HandleDashInput()
+    {
+        if (Input.GetKeyDown(KeyCode.W) && !isAttacking && !isDashing && Time.time - lastDashTime >= dashCooldown)
+        {
+            StartCoroutine(PerformDash());
+        }
+    }
+    System.Collections.IEnumerator PerformDash()
+    {
+        isDashing = true;
+        lastDashTime = Time.time;
 
-    // 🌀 This method gets called from an Animation Event
-    public void PerformAOEAttack()
+        agent.isStopped = true; // Prevent movement while dashing
+
+        Vector3 start = transform.position;
+        Vector3 direction = transform.forward;
+        Vector3 end = start + direction.normalized * dashDistance;
+
+        float elapsed = 0f;
+
+        while (elapsed < dashDuration)
+        {
+            float t = elapsed / dashDuration;
+            Vector3 dashPos = Vector3.Lerp(start, end, t);
+            agent.Warp(dashPos); // Warp overrides navmesh
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        agent.Warp(end); // Snap to final position
+        agent.isStopped = false;
+        isDashing = false;
+
+        Debug.Log("Dash complete");
+    }
+    void UpdateAnimationStates()
+    {
+        bool isMoving = agent.velocity.magnitude > 0.1f && !isAttacking;
+        animator.SetBool("isRunning", isMoving);
+    }
+
+    // 🌀 Called by animation event
+    public void Attack()
     {
         if (!isAttacking) return;
 
-        Collider[] hitEnemies = Physics.OverlapSphere(transform.position, attackRadius, enemyLayer);
+        Collider[] hitEnemies = Physics.OverlapSphere(attackPoint.position, attackRadius, enemyLayer);
 
         /*foreach (Collider enemy in hitEnemies)
         {
@@ -85,12 +147,18 @@ public class PlayerController : MonoBehaviour
         }
 
         Debug.Log($"AOE Damage applied to {hitEnemies.Length} enemies.");
+
+        // ✅ Re-enable movement
+        agent.isStopped = false;
         isAttacking = false;
     }
 
     void OnDrawGizmosSelected()
     {
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position, attackRadius);
+        if (attackPoint != null)
+        {
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireSphere(attackPoint.position, attackRadius);
+        }
     }
 }
