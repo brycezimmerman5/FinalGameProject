@@ -94,7 +94,7 @@ public class PlayerController : MonoBehaviour
         {
             Shoot();
         }
-        else if (Input.GetMouseButtonDown(0) && currentAmmo <= 0)
+        else if (currentAmmo <= 0)
         {
             StartCoroutine(Reload());
         }

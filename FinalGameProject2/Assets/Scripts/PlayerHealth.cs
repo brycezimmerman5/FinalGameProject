@@ -60,5 +60,6 @@ public class PlayerHealth : MonoBehaviour
             cc.enabled = false;
 
         // Optional: add respawn logic here
+        Invoke("UnityEngine.SceneManagement.ReloadScene()", 4f);
     }
 }
