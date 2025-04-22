@@ -1,164 +1,165 @@
 ﻿using UnityEngine;
-using UnityEngine.AI;
 
 public class PlayerController : MonoBehaviour
 {
-    private NavMeshAgent agent;
+    private CharacterController controller;
     private Animator animator;
 
+    [Header("Movement")]
+    public float moveSpeed = 6f;
+    public float gravity = -9.81f;
+    private Vector3 velocity;
+
+    [Header("Mouse Rotation")]
     public LayerMask groundLayer;
-    public LayerMask enemyLayer;
+    private Camera cam;
 
-    [Header("Click Indicator")]
-    public GameObject clickIndicatorPrefab;
+    [Header("Gun Settings")]
+    public GameObject bulletPrefab;
+    public Transform shootPoint;
+    public float bulletForce = 700f;
+    public float fireRate = 0.25f; // time between shots
+    private float lastShotTime = 0f;
 
-    [Header("Attack Settings")]
-    public float attackRadius = 3f;
-    public float attackDamage = 20f;
-    public float attackCooldown = 1.0f;
-    private float lastAttackTime;
-    private bool isAttacking = false;
-    public Transform attackPoint;
-
-    [Header("Visual FX")]
-    public GameObject aoeEffectPrefab;
+    [Header("Ammo Settings")]
+    public int maxAmmo = 10;
+    public float reloadTime = 2f;
+    private int currentAmmo;
+    private bool isReloading = false;
 
     [Header("Dash Settings")]
     public float dashDistance = 5f;
     public float dashDuration = 0.25f;
     public float dashCooldown = 2f;
-
     private float lastDashTime;
     private bool isDashing = false;
 
     void Start()
     {
-        agent = GetComponent<NavMeshAgent>();
+        controller = GetComponent<CharacterController>();
         animator = GetComponent<Animator>();
+        cam = Camera.main;
+        currentAmmo = maxAmmo;
     }
 
     void Update()
     {
-        if (!isAttacking)
+        
+
+        if (!isDashing)
         {
             HandleMovement();
         }
-
-        HandleAutoAttackInput();
-        UpdateAnimationStates();
+        RotateTowardMouse();
+        if (isReloading) return;
+        
         HandleDashInput();
+        HandleShootInput();
+        HandleReloadInput();
+        UpdateAnimationStates();
     }
 
     void HandleMovement()
     {
-        if (Input.GetMouseButtonDown(1)) // Right-click
-        {
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(ray, out RaycastHit hit, 100f, groundLayer))
-            {
-                agent.SetDestination(hit.point);
+        float h = Input.GetAxisRaw("Horizontal");
+        float v = Input.GetAxisRaw("Vertical");
 
-                if (clickIndicatorPrefab != null)
-                {
-                    GameObject indicator = Instantiate(clickIndicatorPrefab, hit.point + Vector3.up * 0.05f, Quaternion.identity);
-                    Destroy(indicator, 0.4f);
-                }
+        Vector3 move = new Vector3(h, 0, v).normalized;
+        controller.Move(move * moveSpeed * Time.deltaTime);
+
+        velocity.y += gravity * Time.deltaTime;
+        controller.Move(velocity * Time.deltaTime);
+    }
+
+    void RotateTowardMouse()
+    {
+        Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+        if (Physics.Raycast(ray, out RaycastHit hit, 100f, groundLayer))
+        {
+            Vector3 lookDir = hit.point - transform.position;
+            lookDir.y = 0f;
+
+            if (lookDir.magnitude > 0.1f)
+            {
+                Quaternion targetRotation = Quaternion.LookRotation(lookDir);
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * 15f);
             }
         }
     }
 
-    void HandleAutoAttackInput()
+    void HandleShootInput()
     {
-        if (Input.GetKeyDown(KeyCode.Q) && Time.time - lastAttackTime >= attackCooldown && !isAttacking)
+        if (Input.GetMouseButton(0) && Time.time - lastShotTime >= fireRate && currentAmmo > 0)
         {
-            lastAttackTime = Time.time;
-            isAttacking = true;
-
-            // Stop movement during attack
-            agent.isStopped = true;
-
-            // 🔁 Play attack animation
-            animator.SetTrigger("Attack");
-
-            Debug.Log("Attack triggered — waiting for animation to hit...");
+            Shoot();
+        }
+        else if (Input.GetMouseButtonDown(0) && currentAmmo <= 0)
+        {
+            StartCoroutine(Reload());
         }
     }
+
+    void Shoot()
+    {
+        lastShotTime = Time.time;
+        currentAmmo--;
+
+        GameObject bullet = Instantiate(bulletPrefab, shootPoint.position, shootPoint.rotation);
+        Rigidbody rb = bullet.GetComponent<Rigidbody>();
+        rb.AddForce(shootPoint.forward * bulletForce);
+
+        // animator.SetTrigger("Shoot");
+        Debug.Log("Shot fired. Ammo remaining: " + currentAmmo);
+    }
+
+    void HandleReloadInput()
+    {
+        if (Input.GetKeyDown(KeyCode.R) && currentAmmo < maxAmmo)
+        {
+            StartCoroutine(Reload());
+        }
+    }
+
+    System.Collections.IEnumerator Reload()
+    {
+        isReloading = true;
+        Debug.Log("Reloading...");
+        // animator.SetTrigger("Reload"); // Optional
+        yield return new WaitForSeconds(reloadTime);
+        currentAmmo = maxAmmo;
+        isReloading = false;
+        Debug.Log("Reload complete.");
+    }
+
     void HandleDashInput()
     {
-        if (Input.GetKeyDown(KeyCode.W) && !isAttacking && !isDashing && Time.time - lastDashTime >= dashCooldown)
+        if (Input.GetKeyDown(KeyCode.Space) && !isDashing && Time.time - lastDashTime >= dashCooldown)
         {
             StartCoroutine(PerformDash());
         }
     }
+
     System.Collections.IEnumerator PerformDash()
     {
         isDashing = true;
         lastDashTime = Time.time;
 
-        agent.isStopped = true; // Prevent movement while dashing
-
-        Vector3 start = transform.position;
-        Vector3 direction = transform.forward;
-        Vector3 end = start + direction.normalized * dashDistance;
-
+        Vector3 dashDir = transform.forward;
         float elapsed = 0f;
 
         while (elapsed < dashDuration)
         {
-            float t = elapsed / dashDuration;
-            Vector3 dashPos = Vector3.Lerp(start, end, t);
-            agent.Warp(dashPos); // Warp overrides navmesh
-
+            controller.Move(dashDir * (dashDistance / dashDuration) * Time.deltaTime);
             elapsed += Time.deltaTime;
             yield return null;
         }
 
-        agent.Warp(end); // Snap to final position
-        agent.isStopped = false;
         isDashing = false;
-
-        Debug.Log("Dash complete");
     }
+
     void UpdateAnimationStates()
     {
-        bool isMoving = agent.velocity.magnitude > 0.1f && !isAttacking;
+        bool isMoving = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical")).magnitude > 0.1f;
         animator.SetBool("isRunning", isMoving);
-    }
-
-    // 🌀 Called by animation event
-    public void Attack()
-    {
-        if (!isAttacking) return;
-
-        Collider[] hitEnemies = Physics.OverlapSphere(attackPoint.position, attackRadius, enemyLayer);
-
-        /*foreach (Collider enemy in hitEnemies)
-        {
-            Enemy enemyScript = enemy.GetComponent<Enemy>();
-            if (enemyScript != null)
-            {
-                enemyScript.TakeDamage(attackDamage);
-            }
-        }*/
-
-        if (aoeEffectPrefab != null)
-        {
-            Instantiate(aoeEffectPrefab, transform.position, Quaternion.identity);
-        }
-
-        Debug.Log($"AOE Damage applied to {hitEnemies.Length} enemies.");
-
-        // ✅ Re-enable movement
-        agent.isStopped = false;
-        isAttacking = false;
-    }
-
-    void OnDrawGizmosSelected()
-    {
-        if (attackPoint != null)
-        {
-            Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(attackPoint.position, attackRadius);
-        }
     }
 }
