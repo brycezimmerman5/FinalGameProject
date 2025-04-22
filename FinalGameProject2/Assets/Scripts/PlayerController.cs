@@ -20,6 +20,7 @@ public class PlayerController : MonoBehaviour
     public float bulletForce = 700f;
     public float fireRate = 0.25f; // time between shots
     private float lastShotTime = 0f;
+    public float accuracy = 0.9f;
 
     [Header("Ammo Settings")]
     public int maxAmmo = 10;
@@ -106,7 +107,8 @@ public class PlayerController : MonoBehaviour
 
         GameObject bullet = Instantiate(bulletPrefab, shootPoint.position, shootPoint.rotation);
         Rigidbody rb = bullet.GetComponent<Rigidbody>();
-        rb.AddForce(shootPoint.forward * bulletForce);
+        bullet.transform.Rotate(0, Random.Range(-(1-accuracy)*20,(1-accuracy)*20), 0);
+        rb.AddForce(bullet.transform.forward * bulletForce);
 
         // animator.SetTrigger("Shoot");
         Debug.Log("Shot fired. Ammo remaining: " + currentAmmo);
@@ -124,7 +126,7 @@ public class PlayerController : MonoBehaviour
     {
         isReloading = true;
         Debug.Log("Reloading...");
-        // animator.SetTrigger("Reload"); // Optional
+        animator.SetTrigger("Reload"); // Optional
         yield return new WaitForSeconds(reloadTime);
         currentAmmo = maxAmmo;
         isReloading = false;
@@ -144,7 +146,7 @@ public class PlayerController : MonoBehaviour
         isDashing = true;
         lastDashTime = Time.time;
 
-        Vector3 dashDir = transform.forward;
+        Vector3 dashDir = -transform.forward;
         float elapsed = 0f;
 
         while (elapsed < dashDuration)

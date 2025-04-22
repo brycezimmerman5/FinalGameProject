@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.AI;
 
 public class Enemy : MonoBehaviour
@@ -20,6 +20,8 @@ public class Enemy : MonoBehaviour
     public GameObject deathEffectPrefab;
     private Transform player;
     private NavMeshAgent agent;
+
+    public GameObject bloodSplatterPrefab;
 
     void Start()
     {
@@ -86,11 +88,11 @@ public class Enemy : MonoBehaviour
         float distance = Vector3.Distance(transform.position, player.position);
         if (distance <= attackRange)
         {
-            /*PlayerHealth playerHealth = player.GetComponent<PlayerHealth>();
+            PlayerHealth playerHealth = player.GetComponent<PlayerHealth>();
             if (playerHealth != null)
             {
                 playerHealth.TakeDamage(attackDamage);
-            }*/
+            }
         }
 
         yield return new WaitForSeconds(attackCooldown - 0.5f);
@@ -114,6 +116,12 @@ public class Enemy : MonoBehaviour
 
         currentHealth -= amount;
         Debug.Log($"{gameObject.name} took {amount} damage. Remaining: {currentHealth}");
+
+        // 🩸 Spawn blood splatter
+        if (bloodSplatterPrefab)
+        {
+            Instantiate(bloodSplatterPrefab, transform.position + Vector3.up * 1f, Quaternion.identity);
+        }
 
         if (currentHealth <= 0)
         {

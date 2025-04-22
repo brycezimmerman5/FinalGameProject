@@ -346,7 +346,9 @@
 "Assets/Scripts/Bullet.cs"
 "Assets/Scripts/Enemy.cs"
 "Assets/Scripts/PlayerController.cs"
+"Assets/Scripts/PlayerHealth.cs"
 "Assets/Scripts/TopDownCamera.cs"
+"Assets/Scripts/WaveSpawner.cs"
 -langversion:9.0
 
 /deterministic
