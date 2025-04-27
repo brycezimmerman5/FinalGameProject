@@ -85,6 +85,11 @@ public class PlayerHealth : MonoBehaviour
             cc.enabled = false;
 
         // Optional: add respawn logic here
-        Invoke("UnityEngine.SceneManagement.ReloadScene()", 4f);
+        Invoke("ReloadScene", 3f);
+    }
+    // Method to reload the scene
+    void ReloadScene()
+    {
+        UnityEngine.SceneManagement.SceneManager.LoadScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
     }
 }
