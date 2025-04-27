@@ -38,6 +38,29 @@ public class PlayerHealth : MonoBehaviour
         }
     }
 
+    public void Heal(float amount)
+    {
+        if (isDead) return;
+
+        currentHealth += amount;
+        currentHealth = Mathf.Min(currentHealth, maxHealth); // Don't exceed maxHealth
+        Debug.Log($"Player healed {amount}. Current health: {currentHealth}");
+
+        // Update UI
+        UIhealth.Instance.Heal(amount / 10);
+    }
+
+    public void AddHealth(float amount)
+    {
+        if (isDead) return;
+
+        maxHealth += amount;
+        currentHealth = maxHealth;
+
+        // Update UI
+        UIhealth.Instance.AddHealth();
+    }
+
     void Die()
     {
         isDead = true;

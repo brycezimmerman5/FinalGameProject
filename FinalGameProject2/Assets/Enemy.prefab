@@ -2760,6 +2760,10 @@ MonoBehaviour:
   attackCooldown: 1.5
   animator: {fileID: 6263329403569236362}
   deathEffectPrefab: {fileID: 0}
+  healthPackPrefab: {fileID: 3343229072912101299, guid: 0de24c90c572fdd41acfb7408c0722c9, type: 3}
+  maxHealthIncreasePrefab: {fileID: 7975998872709633962, guid: b76de77e9e36a1c44b094c10711555eb, type: 3}
+  healthPackDropChance: 0.2
+  maxHealthIncreaseDropChance: 0.05
   bloodSplatterPrefab: {fileID: 3548588485384254792, guid: 2f9e7dc163581394da1e00b561eed65d, type: 3}
 --- !u!1 &6767266671097361611
 GameObject:
