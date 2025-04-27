@@ -25,6 +25,8 @@ public class PlayerHealth : MonoBehaviour
         if (isDead) return;
 
         currentHealth -= amount;
+        //For UI
+        UIhealth.Instance.TakeDamage(amount / 10);
         Debug.Log($"Player took {amount} damage. Current health: {currentHealth}");
 
         // Optional: trigger a hurt animation or flash effect
