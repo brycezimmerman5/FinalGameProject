@@ -50,7 +50,7 @@ public class UIhealth : MonoBehaviour
         if (maxHealth < maxTotalHealth)
         {
             maxHealth += 1;
-            health = maxHealth;
+            //health = maxHealth;
 
             if (onHealthChangedCallback != null)
                 onHealthChangedCallback.Invoke();

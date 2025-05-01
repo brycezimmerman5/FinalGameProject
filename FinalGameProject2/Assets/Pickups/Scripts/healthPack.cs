@@ -9,7 +9,7 @@ public class healthPack : MonoBehaviour
         if (other.CompareTag("Player"))
         {
             PlayerHealth playerHealth = other.GetComponent<PlayerHealth>();
-            if (playerHealth != null)
+            if (playerHealth != null && playerHealth.currentHealth < playerHealth.maxHealth)
             {
                 playerHealth.Heal(healAmount); 
                 Destroy(gameObject);

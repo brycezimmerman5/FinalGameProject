@@ -26,7 +26,8 @@ public class Enemy : MonoBehaviour
     public GameObject healthPackPrefab; 
     public GameObject maxHealthIncreasePrefab;
     [Range(0f, 1f)]
-    public float healthPackDropChance = 0.2f; 
+    public float healthPackDropChance = 0.2f;
+    [Range(0f, 1f)]
     public float maxHealthIncreaseDropChance = 0.05f;
 
 

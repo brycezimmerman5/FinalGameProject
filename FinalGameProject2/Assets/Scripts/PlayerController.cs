@@ -26,6 +26,8 @@ public class PlayerController : MonoBehaviour
     public int maxAmmo = 10;
     public float reloadTime = 2f;
     private int currentAmmo;
+    public int GetCurrentAmmo() => currentAmmo;
+
     private bool isReloading = false;
 
     [Header("Dash Settings")]
@@ -164,4 +166,41 @@ public class PlayerController : MonoBehaviour
         bool isMoving = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical")).magnitude > 0.1f;
         animator.SetBool("isRunning", isMoving);
     }
+    public void ApplyPowerUp(PowerUp powerUp)
+    {
+        switch (powerUp.type)
+        {
+            case PowerUpType.IncreaseMaxAmmo:
+                maxAmmo += Mathf.RoundToInt(powerUp.value);
+                currentAmmo = maxAmmo;
+                break;
+
+            case PowerUpType.FasterReload:
+                reloadTime = Mathf.Max(0.1f, reloadTime - powerUp.value);
+                break;
+
+            case PowerUpType.BetterAccuracy:
+                accuracy = Mathf.Min(1f, accuracy + powerUp.value);
+                break;
+
+            case PowerUpType.FasterFireRate:
+                fireRate = Mathf.Max(0.05f, fireRate - powerUp.value);
+                break;
+
+            case PowerUpType.StrongerBulletForce:
+                bulletForce += powerUp.value;
+                break;
+
+            case PowerUpType.LongerDash:
+                dashDistance += powerUp.value;
+                break;
+
+            case PowerUpType.ShorterDashCooldown:
+                dashCooldown = Mathf.Max(0.1f, dashCooldown - powerUp.value);
+                break;
+        }
+
+        Debug.Log($"Applied Power-Up: {powerUp.type} +{powerUp.value}");
+    }
+
 }

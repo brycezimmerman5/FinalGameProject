@@ -4,7 +4,7 @@ public class PlayerHealth : MonoBehaviour
 {
     [Header("Health Settings")]
     public float maxHealth = 100f;
-    private float currentHealth;
+    public float currentHealth;
 
     [Header("Visuals & FX")]
     public GameObject deathEffectPrefab;
@@ -43,7 +43,7 @@ public class PlayerHealth : MonoBehaviour
         if (isDead) return;
 
         currentHealth += amount;
-        currentHealth = Mathf.Min(currentHealth, maxHealth); // Don't exceed maxHealth
+        //currentHealth = Mathf.Min(currentHealth, maxHealth); // Don't exceed maxHealth
         Debug.Log($"Player healed {amount}. Current health: {currentHealth}");
 
         // Update UI
