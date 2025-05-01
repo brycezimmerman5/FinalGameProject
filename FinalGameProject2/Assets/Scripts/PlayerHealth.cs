@@ -25,6 +25,8 @@ public class PlayerHealth : MonoBehaviour
         if (isDead) return;
 
         currentHealth -= amount;
+        //For UI
+        UIhealth.Instance.TakeDamage(amount / 10);
         Debug.Log($"Player took {amount} damage. Current health: {currentHealth}");
 
         // Optional: trigger a hurt animation or flash effect
@@ -34,6 +36,29 @@ public class PlayerHealth : MonoBehaviour
         {
             Die();
         }
+    }
+
+    public void Heal(float amount)
+    {
+        if (isDead) return;
+
+        currentHealth += amount;
+        currentHealth = Mathf.Min(currentHealth, maxHealth); // Don't exceed maxHealth
+        Debug.Log($"Player healed {amount}. Current health: {currentHealth}");
+
+        // Update UI
+        UIhealth.Instance.Heal(amount / 10);
+    }
+
+    public void AddHealth(float amount)
+    {
+        if (isDead) return;
+
+        maxHealth += amount;
+        currentHealth = maxHealth;
+
+        // Update UI
+        UIhealth.Instance.AddHealth();
     }
 
     void Die()
@@ -60,6 +85,11 @@ public class PlayerHealth : MonoBehaviour
             cc.enabled = false;
 
         // Optional: add respawn logic here
-        Invoke("UnityEngine.SceneManagement.ReloadScene()", 4f);
+        Invoke("ReloadScene", 3f);
+    }
+    // Method to reload the scene
+    void ReloadScene()
+    {
+        UnityEngine.SceneManagement.SceneManager.LoadScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
     }
 }

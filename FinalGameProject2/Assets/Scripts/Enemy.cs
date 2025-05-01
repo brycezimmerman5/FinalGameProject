@@ -21,6 +21,15 @@ public class Enemy : MonoBehaviour
     private Transform player;
     private NavMeshAgent agent;
 
+    //Additions
+    [Header("Drop Settings")]
+    public GameObject healthPackPrefab; 
+    public GameObject maxHealthIncreasePrefab;
+    [Range(0f, 1f)]
+    public float healthPackDropChance = 0.2f; 
+    public float maxHealthIncreaseDropChance = 0.05f;
+
+
     public GameObject bloodSplatterPrefab;
 
     void Start()
@@ -142,8 +151,12 @@ public class Enemy : MonoBehaviour
         if (deathEffectPrefab)
             Instantiate(deathEffectPrefab, transform.position, Quaternion.identity);
 
+        // Try dropping a health pack
+        TryDropping();
+
         Destroy(gameObject, 30f); // Destroy after 30 seconds
     }
+
     void EnableRagdoll(bool state)
     {
         Rigidbody[] rigidbodies = GetComponentsInChildren<Rigidbody>();
@@ -165,5 +178,17 @@ public class Enemy : MonoBehaviour
 
         if (GetComponent<Rigidbody>() != null)
             GetComponent<Rigidbody>().isKinematic = state;
+    }
+
+    void TryDropping()
+    {
+        if (healthPackPrefab != null && Random.value <= healthPackDropChance)
+        {
+            Instantiate(healthPackPrefab, transform.position, Quaternion.identity);
+        }
+        if (maxHealthIncreasePrefab != null && Random.value <= maxHealthIncreaseDropChance)
+        {
+            Instantiate(maxHealthIncreasePrefab, transform.position, Quaternion.identity);
+        }
     }
 }
