@@ -21,7 +21,7 @@ public class Enemy : MonoBehaviour
     private Transform player;
     private NavMeshAgent agent;
 
-    //Additions
+    //Drops for when an enemy is killed
     [Header("Drop Settings")]
     public GameObject healthPackPrefab; 
     public GameObject maxHealthIncreasePrefab;
@@ -183,10 +183,12 @@ public class Enemy : MonoBehaviour
 
     void TryDropping()
     {
+        //This pickup heals the player
         if (healthPackPrefab != null && Random.value <= healthPackDropChance)
         {
             Instantiate(healthPackPrefab, transform.position, Quaternion.identity);
         }
+        //This pickup increases the maximum health of the player
         if (maxHealthIncreasePrefab != null && Random.value <= maxHealthIncreaseDropChance)
         {
             Instantiate(maxHealthIncreasePrefab, transform.position, Quaternion.identity);
