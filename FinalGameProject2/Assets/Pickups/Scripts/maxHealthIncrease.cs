@@ -13,6 +13,7 @@ public class maxHealthIncrease : MonoBehaviour
             PlayerHealth playerHealth = other.GetComponent<PlayerHealth>();
             if (playerHealth != null)
             {
+                //Increase Max Health
                 playerHealth.AddHealth(healthIncreaseAmount); 
                 Destroy(gameObject);
             }

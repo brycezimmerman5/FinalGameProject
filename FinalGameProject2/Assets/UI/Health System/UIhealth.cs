@@ -45,12 +45,13 @@ public class UIhealth : MonoBehaviour
         ClampHealth();
     }
 
+    //INCREASES MAX HEALTH
     public void AddHealth()
     {
         if (maxHealth < maxTotalHealth)
         {
             maxHealth += 1;
-            //health = maxHealth;
+            health = maxHealth;
 
             if (onHealthChangedCallback != null)
                 onHealthChangedCallback.Invoke();

@@ -50,6 +50,7 @@ public class PlayerHealth : MonoBehaviour
         UIhealth.Instance.Heal(amount / 10);
     }
 
+    //INCREASES MAX HEALTH
     public void AddHealth(float amount)
     {
         if (isDead) return;
