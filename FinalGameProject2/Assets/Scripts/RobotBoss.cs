@@ -88,6 +88,7 @@ public class RobotBoss : MonoBehaviour
             case 2: // Phase 2 – ranged and melee
                 HandleMovement();
                 TryMeleeAttack(distance);
+                TryRangedAttack(distance);
                 TryOverheat();
                
                 break;
