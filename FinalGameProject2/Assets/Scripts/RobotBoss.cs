@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.AI;
 using System.Collections;
 
@@ -13,7 +13,7 @@ public class RobotBoss : MonoBehaviour
     public float attackRange = 5f;
     public float attackDamage = 25f;
     public float attackCooldown = 2.5f;
-    private float lastAttackTime;
+    private float lastMeleeAttackTime;
     private bool isAttacking = false;
 
     [Header("References")]
@@ -26,28 +26,34 @@ public class RobotBoss : MonoBehaviour
     private Transform player;
     private NavMeshAgent agent;
 
-    [Header("Phase Thresholds")]
+    [Header("Phases")]
     public float phase2Threshold = 0.6f;
     public float phase3Threshold = 0.25f;
     private int currentPhase = 1;
 
-    [Header("Movement")]
-    public float circleDistance = 8f;
-    public float circleSpeed = 3f;
-    public float dashSpeed = 15f;
-    public float dashCooldown = 8f;
-    private float lastDashTime;
-    private bool isDashing = false;
-    private Vector3 dashTarget;
-
     private bool isRunning = false;
+    public int numAttacks = 2;
 
+    [Header("Laser Attack")]
+    public GameObject laserPrefab;
+    public Transform laserSpawnPoint;
+    private Coroutine laserCoroutine;
+    public float rangedAttackRange = 15f;
+    private bool isLasering = false;
+    public float rangedAttackCooldown = 4f;
+    private float lastRangedAttackTime;
+    public float timeBetweenLasers = 0.2f;
+    public float laserForce = 1000f;
+    [Header("Overheat")]
+    public Renderer eyeRenderer; // assign glowing material
+    public Color overheatColor = Color.red;
+    public float glowIntensity = 5f;
+    private bool hasOverheated = false;
     void Start()
     {
         currentHealth = maxHealth;
-        if (!animator) animator = GetComponent<Animator>();
         agent = GetComponent<NavMeshAgent>();
-        agent.updateRotation = true;
+        if (!animator) animator = GetComponent<Animator>();
         agent.stoppingDistance = attackRange - 0.5f;
 
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
@@ -61,87 +67,128 @@ public class RobotBoss : MonoBehaviour
         if (isDead || player == null) return;
 
         CheckPhase();
-
-        if (isDashing)
-        {
-            agent.isStopped = true;
-            transform.position = Vector3.MoveTowards(transform.position, dashTarget, dashSpeed * Time.deltaTime);
-            if (Vector3.Distance(transform.position, dashTarget) < 0.5f)
-            {
-                isDashing = false;
-                agent.isStopped = false;
-            }
-            return;
-        }
-
         float distance = Vector3.Distance(transform.position, player.position);
 
-        // Always move toward player unless attacking or dashing
-        if (!isAttacking && !isDashing)
+        if (isLasering && player != null)
+        {
+            Vector3 dir = (player.position - transform.position).normalized;
+            dir.y = 0f;
+            Quaternion rot = Quaternion.LookRotation(dir);
+            transform.rotation = Quaternion.Slerp(transform.rotation, rot, Time.deltaTime * 5f);
+        }
+
+        switch (currentPhase)
+        {
+            case 1: // Phase 1 – basic melee
+                HandleMovement();
+                TryMeleeAttack(distance);
+                TryRangedAttack(distance);
+                break;
+
+            case 2: // Phase 2 – ranged and melee
+                HandleMovement();
+                TryMeleeAttack(distance);
+                TryOverheat();
+               
+                break;
+
+            case 3: // Phase 3 – assume laser/black hole/etc.
+                HandleMovement();
+                TryRangedAttack(distance);
+                TryMeleeAttack(distance);
+                break;
+        }
+    }
+    void TryOverheat()
+    {
+        if (!hasOverheated)
+        {
+            animator.SetTrigger("Overheat");
+            //isAttacking = true;
+            hasOverheated = true;
+        }
+    }
+    void HandleMovement()
+    {
+        if (!isAttacking && !isLasering)
         {
             agent.isStopped = false;
             agent.SetDestination(player.position);
             SetRunning(agent.velocity.magnitude > 0.1f);
         }
-
-        // Attack if in range
-        if (!isAttacking && distance <= attackRange && Time.time - lastAttackTime >= attackCooldown)
+        else if (!isLasering)
         {
-            agent.isStopped = true;
+            agent.SetDestination(player.position);
+        }
+    }
+
+    void TryRangedAttack(float distance)
+    {
+        if (!isAttacking && distance <= rangedAttackRange && distance > attackRange && Time.time - lastRangedAttackTime >= rangedAttackCooldown)
+        {
             SetRunning(false);
-            StartCoroutine(PerformAttack());
-            lastAttackTime = Time.time;
+            agent.speed = Mathf.Max(agent.speed - 4f, 0f);
+            animator.SetTrigger("Attack2");
+            isAttacking = true;
+            lastRangedAttackTime = Time.time;
         }
+    }
 
-        if (currentPhase >= 2 && Time.time - lastDashTime > dashCooldown)
+    void TryMeleeAttack(float distance)
+    {
+        if (!isAttacking && distance <= attackRange && Time.time - lastMeleeAttackTime >= attackCooldown)
         {
-            DashToOffset();
-            lastDashTime = Time.time;
+            SetRunning(false);
+            animator.SetTrigger("Attack1");
+            isAttacking = true;
+            lastMeleeAttackTime = Time.time;
         }
     }
-
-    void AdvancedMovement()
+    public void StartLaserAttack()
     {
-        Vector3 offset = Quaternion.Euler(0, Time.time * circleSpeed, 0) * Vector3.forward * circleDistance;
-        Vector3 target = player.position + offset;
-        agent.SetDestination(target);
-    }
-
-    void DashToOffset()
-    {
-        Vector3 dir = (transform.position - player.position).normalized;
-        Vector3 sideOffset = Vector3.Cross(dir, Vector3.up) * Random.Range(-6f, 6f);
-        dashTarget = player.position + dir * 3f + sideOffset;
-        isDashing = true;
-        agent.ResetPath();
-        Debug.Log("Dash initiated.");
-    }
-
-    void SetRunning(bool value)
-    {
-        if (isRunning != value)
+        if (laserCoroutine == null)
         {
-            isRunning = value;
-            animator.SetBool("isRunning", isRunning);
+            laserCoroutine = StartCoroutine(LaserAttackLoop());
+            isLasering = true;
+            isAttacking = true;
+            Debug.Log("Laser attack started.");
         }
     }
 
-    IEnumerator PerformAttack()
+    public void StopLaserAttack()
     {
-        isAttacking = true;
-        animator.SetBool("isRunning", false);
-        animator.SetTrigger("Attack");
-
-        yield return new WaitForSeconds(0.6f);
-
-        if (Vector3.Distance(transform.position, player.position) <= attackRange)
+        if (laserCoroutine != null)
         {
-            var playerHealth = player.GetComponent<PlayerHealth>();
-            if (playerHealth != null) playerHealth.TakeDamage(attackDamage);
+            StopCoroutine(laserCoroutine);
+            laserCoroutine = null;
         }
-
-        yield return new WaitForSeconds(attackCooldown - 0.6f);
+        isLasering = false;
         isAttacking = false;
+        agent.speed += 4f;
+        Debug.Log("Laser attack stopped.");
+    }
+
+    private IEnumerator LaserAttackLoop()
+    {
+        while (true)
+        {
+            FireLaser();
+            yield return new WaitForSeconds(timeBetweenLasers);
+        }
+    }
+
+    private void FireLaser()
+    {
+        if (laserPrefab && laserSpawnPoint)
+        {
+            GameObject laser = Instantiate(laserPrefab, laserSpawnPoint.position, laserSpawnPoint.rotation);
+            Rigidbody rb = laser.GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.AddForce(laserSpawnPoint.forward * laserForce);
+            }
+            Destroy(laser, 5f);
+        }
     }
 
     void CheckPhase()
@@ -151,14 +198,60 @@ public class RobotBoss : MonoBehaviour
         if (hpPercent <= phase3Threshold && currentPhase < 3)
         {
             currentPhase = 3;
-            Debug.Log("Phase 3 triggered!");
-            if (blackHolePrefab) Instantiate(blackHolePrefab, attackOrigin.position, Quaternion.identity);
+            Debug.Log("Phase 3 reached. Wait for animation to trigger Black Hole.");
         }
         else if (hpPercent <= phase2Threshold && currentPhase < 2)
         {
             currentPhase = 2;
-            Debug.Log("Phase 2 triggered!");
+            Debug.Log("Phase 2 reached. No dash ability now.");
         }
+    }
+    
+
+    public void TriggerOverheat()
+    {
+        if (eyeRenderer != null)
+        {
+            eyeRenderer.material.SetColor("_EmissionColor", overheatColor * glowIntensity);
+            Debug.Log("Eyes glowing – overheat triggered.");
+        }
+    }
+    void SetRunning(bool value)
+    {
+        if (isRunning != value)
+        {
+            isRunning = value;
+            animator.SetBool("isRunning", isRunning);
+        }
+    }
+
+    public void DealDamage()
+    {
+        if (player == null || isDead) return;
+
+        float dist = Vector3.Distance(transform.position, player.position);
+        if (dist <= attackRange)
+        {
+            PlayerHealth hp = player.GetComponent<PlayerHealth>();
+            if (hp != null) hp.TakeDamage(attackDamage);
+        }
+
+        StartCoroutine(EndAttackCooldown());
+    }
+
+    public void TriggerBlackHole()
+    {
+        if (blackHolePrefab && attackOrigin)
+        {
+            Instantiate(blackHolePrefab, attackOrigin.position, Quaternion.identity);
+            Debug.Log("Black Hole ability triggered.");
+        }
+    }
+
+    IEnumerator EndAttackCooldown()
+    {
+        yield return new WaitForSeconds(attackCooldown);
+        isAttacking = false;
     }
 
     public void TakeDamage(float amount)
@@ -194,7 +287,8 @@ public class RobotBoss : MonoBehaviour
             rb.isKinematic = !state;
 
         foreach (var col in GetComponentsInChildren<Collider>())
-            if (col.gameObject != gameObject) col.enabled = state;
+            if (col.gameObject != gameObject)
+                col.enabled = state;
 
         if (TryGetComponent(out Collider mainCol)) mainCol.enabled = !state;
         if (TryGetComponent(out Rigidbody mainRb)) mainRb.isKinematic = state;
@@ -204,10 +298,10 @@ public class RobotBoss : MonoBehaviour
     {
         if (other.CompareTag("Bullet"))
         {
-            Bullet bullet = other.GetComponent<Bullet>();
-            if (bullet != null)
+            Bullet b = other.GetComponent<Bullet>();
+            if (b != null)
             {
-                TakeDamage(bullet.damage);
+                TakeDamage(b.damage);
                 Destroy(other.gameObject);
             }
         }
