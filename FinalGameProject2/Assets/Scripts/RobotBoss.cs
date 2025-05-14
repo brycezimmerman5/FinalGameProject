@@ -30,16 +30,26 @@ public class RobotBoss : MonoBehaviour
     private NavMeshAgent agent;
 
     [Header("Movement Behavior")]
-    public float stopDistance = 5f;         // How far to stay from player
-    public float circleStrafeSpeed = 2f;    // Circle speed when within range
-    public float repositionFrequency = 4f;  // How often to reposition
+    public float stopDistance = 5f;
+    public float circleStrafeSpeed = 2f;
+    public float repositionFrequency = 4f;
     private float repositionTimer;
+    public float dashSpeed = 15f;
+    public float dashDuration = 0.5f;
+    public float dashCooldown = 5f;
+    private float lastDashTime;
+    private bool isDashing = false;
+    public float teleportCooldown = 10f;
+    private float lastTeleportTime;
+    public float teleportRange = 20f;
 
     [Header("Phases")]
     public float phase2Threshold = 0.6f;
     public float phase3Threshold = 0.25f;
     private int currentPhase = 1;
     private bool isRunning = false;
+    private float phaseChangeTimer = 0f;
+    public float phaseChangeInterval = 15f;
 
     [Header("Laser Attack")]
     public GameObject laserPrefab;
@@ -53,7 +63,7 @@ public class RobotBoss : MonoBehaviour
     public float laserForce = 1000f;
 
     [Header("Overheat")]
-    public Renderer eyeRenderer; // assign glowing material
+    public Renderer eyeRenderer;
     public Color overheatColor = Color.red;
     public float glowIntensity = 5f;
     private bool hasOverheated = false;
@@ -74,15 +84,26 @@ public class RobotBoss : MonoBehaviour
     public Image healthBarFill;
     public Canvas healthCanvas;
 
-    [Header("Foot Beam Attack (Phase 2 Loop)")]
+    [Header("Foot Beam Attack")]
     public GameObject footBeamPrefab;
     public Transform beamSpawnPoint;
     public float footBeamForce = 800f;
     public float beamInterval = 5f;
 
+    [Header("New Abilities")]
+    public GameObject shieldPrefab;
+    public float shieldDuration = 5f;
+    public float shieldCooldown = 15f;
+    private float lastShieldTime;
+    private bool isShielded = false;
+    public GameObject shockwavePrefab;
+    public float shockwaveCooldown = 8f;
+    private float lastShockwaveTime;
+    public float shockwaveRadius = 10f;
+    public float shockwaveForce = 1000f;
+
     private Coroutine footBeamCoroutine;
-
-
+    private Coroutine currentMovementCoroutine;
 
     void Start()
     {
@@ -113,30 +134,182 @@ public class RobotBoss : MonoBehaviour
             transform.rotation = Quaternion.Slerp(transform.rotation, rot, Time.deltaTime * 5f);
         }
 
+        // Phase change timer
+        phaseChangeTimer += Time.deltaTime;
+        if (phaseChangeTimer >= phaseChangeInterval)
+        {
+            phaseChangeTimer = 0f;
+            RandomizeBehavior();
+        }
+
         switch (currentPhase)
         {
-            case 1: // Phase 1 – basic melee
-                HandleMovement();
-                TryMeleeAttack(distance);
-                TryRangedAttack(distance);
+            case 1:
+                HandlePhase1Behavior(distance);
                 break;
-
-            case 2: // Phase 2 – ranged and melee
-                TryOverheat();
-                HandleMovement();
-                TryMeleeAttack(distance);
-                TryRangedAttack(distance);
-                
-               
+            case 2:
+                HandlePhase2Behavior(distance);
                 break;
-
-            case 3: // Phase 3 – assume laser/black hole/etc.
-                HandleMovement();
-                TryRangedAttack(distance);
-                TryMeleeAttack(distance);
+            case 3:
+                HandlePhase3Behavior(distance);
                 break;
         }
     }
+
+    void HandlePhase1Behavior(float distance)
+    {
+        if (!isAttacking && !isLasering && !isDashing)
+        {
+            if (Random.value < 0.3f && Time.time - lastDashTime >= dashCooldown)
+            {
+                StartCoroutine(PerformDash());
+            }
+            else if (Random.value < 0.2f && Time.time - lastTeleportTime >= teleportCooldown)
+            {
+                TeleportToRandomPosition();
+            }
+            else
+            {
+                HandleMovement();
+            }
+        }
+        TryMeleeAttack(distance);
+        TryRangedAttack(distance);
+    }
+
+    void HandlePhase2Behavior(float distance)
+    {
+        if (!isAttacking && !isLasering && !isDashing)
+        {
+            if (Random.value < 0.4f && Time.time - lastDashTime >= dashCooldown)
+            {
+                StartCoroutine(PerformDash());
+            }
+            else if (Random.value < 0.3f && Time.time - lastShockwaveTime >= shockwaveCooldown)
+            {
+                PerformShockwave();
+            }
+            else
+            {
+                HandleMovement();
+            }
+        }
+        TryOverheat();
+        TryMeleeAttack(distance);
+        TryRangedAttack(distance);
+    }
+
+    void HandlePhase3Behavior(float distance)
+    {
+        if (!isAttacking && !isLasering && !isDashing)
+        {
+            if (Random.value < 0.5f && Time.time - lastTeleportTime >= teleportCooldown)
+            {
+                TeleportToRandomPosition();
+            }
+            else if (Random.value < 0.4f && Time.time - lastDashTime >= dashCooldown)
+            {
+                StartCoroutine(PerformDash());
+            }
+            else if (Random.value < 0.3f && Time.time - lastShockwaveTime >= shockwaveCooldown)
+            {
+                PerformShockwave();
+            }
+            else
+            {
+                HandleMovement();
+            }
+        }
+        TryRangedAttack(distance);
+        TryMeleeAttack(distance);
+    }
+
+    void RandomizeBehavior()
+    {
+        // Randomly change attack patterns and movement
+        attackCooldown = Random.Range(1.5f, 3f);
+        rangedAttackCooldown = Random.Range(3f, 6f);
+        timeBetweenLasers = Random.Range(0.1f, 0.3f);
+        stopDistance = Random.Range(4f, 7f);
+    }
+
+    void TeleportToRandomPosition()
+    {
+        Vector3 randomDirection = Random.insideUnitSphere * teleportRange;
+        randomDirection.y = 0;
+        Vector3 targetPosition = player.position + randomDirection;
+
+        NavMeshHit hit;
+        if (NavMesh.SamplePosition(targetPosition, out hit, teleportRange, NavMesh.AllAreas))
+        {
+            transform.position = hit.position;
+            lastTeleportTime = Time.time;
+            Debug.Log("Boss teleported to new position");
+        }
+    }
+
+    IEnumerator PerformDash()
+    {
+        isDashing = true;
+        lastDashTime = Time.time;
+        Vector3 dashDirection = (player.position - transform.position).normalized;
+        float elapsed = 0f;
+
+        while (elapsed < dashDuration)
+        {
+            agent.Move(dashDirection * dashSpeed * Time.deltaTime);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        isDashing = false;
+    }
+
+    void ActivateShield()
+    {
+        if (shieldPrefab != null)
+        {
+            GameObject shield = Instantiate(shieldPrefab, transform.position, Quaternion.identity);
+            shield.transform.parent = transform;
+            isShielded = true;
+            lastShieldTime = Time.time;
+            StartCoroutine(DeactivateShield(shield));
+        }
+    }
+
+    IEnumerator DeactivateShield(GameObject shield)
+    {
+        yield return new WaitForSeconds(shieldDuration);
+        isShielded = false;
+        Destroy(shield);
+    }
+
+    void PerformShockwave()
+    {
+        if (shockwavePrefab != null)
+        {
+            GameObject shockwave = Instantiate(shockwavePrefab, transform.position, Quaternion.identity);
+            lastShockwaveTime = Time.time;
+
+            // Apply force to nearby objects
+            Collider[] colliders = Physics.OverlapSphere(transform.position, shockwaveRadius);
+            foreach (Collider col in colliders)
+            {
+                if (col.CompareTag("Player"))
+                {
+                    Rigidbody rb = col.GetComponent<Rigidbody>();
+                    if (rb != null)
+                    {
+                        Vector3 direction = (col.transform.position - transform.position).normalized;
+                        rb.AddForce(direction * shockwaveForce);
+                    }
+                }
+            }
+
+            Destroy(shockwave, 2f);
+        }
+    }
+
     void TryOverheat()
     {
         if (!hasOverheated && !isLasering && !isAttacking)

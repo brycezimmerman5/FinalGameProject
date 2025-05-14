@@ -1724,7 +1724,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5bf0b65a0fe6aa746817a4fd75a93c57, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxHealth: 100
+  maxHealth: 80
   attackRange: 12
   attackDamage: 10
   attackCooldown: 1.5
@@ -1739,6 +1739,9 @@ MonoBehaviour:
   projectileSpawnPoint: {fileID: 5608684199116367662}
   fireCooldown: 2
   timeBetweenFire: 0.2
+  strafeDistance: 2
+  strafeIntervalMin: 1.5
+  strafeIntervalMax: 3.5
 --- !u!1 &4815205675402813767
 GameObject:
   m_ObjectHideFlags: 0
