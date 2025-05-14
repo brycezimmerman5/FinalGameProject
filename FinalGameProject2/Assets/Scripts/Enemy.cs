@@ -5,35 +5,33 @@ public class Enemy : MonoBehaviour
 {
     [Header("Stats")]
     public float maxHealth = 100f;
-    private float currentHealth;
-    private bool isDead = false;
+    protected float currentHealth;
+    protected bool isDead = false;
 
     [Header("Attack Settings")]
     public float attackRange = 2f;
     public float attackDamage = 10f;
     public float attackCooldown = 1.5f;
-    private float lastAttackTime;
-    private bool isAttacking = false;
+    protected float lastAttackTime;
+    protected bool isAttacking = false;
 
     [Header("References")]
     public Animator animator;
     public GameObject deathEffectPrefab;
-    private Transform player;
-    private NavMeshAgent agent;
+    protected Transform player;
+    protected NavMeshAgent agent;
 
-    //Drops for when an enemy is killed
     [Header("Drop Settings")]
-    public GameObject healthPackPrefab; 
+    public GameObject healthPackPrefab;
     public GameObject maxHealthIncreasePrefab;
-    [Range(0f, 1f)]
-    public float healthPackDropChance = 0.2f;
-    [Range(0f, 1f)]
-    public float maxHealthIncreaseDropChance = 0.05f;
-
+    [Range(0f, 1f)] public float healthPackDropChance = 0.2f;
+    [Range(0f, 1f)] public float maxHealthIncreaseDropChance = 0.05f;
 
     public GameObject bloodSplatterPrefab;
 
-    void Start()
+    protected bool isRunning = false;
+
+    protected virtual void Start()
     {
         currentHealth = maxHealth;
 
@@ -45,12 +43,11 @@ public class Enemy : MonoBehaviour
         {
             player = playerObj.transform;
         }
+
         EnableRagdoll(false);
     }
 
-    private bool isRunning = false;
-
-    void Update()
+    protected virtual void Update()
     {
         if (isDead || player == null) return;
 
@@ -65,7 +62,7 @@ public class Enemy : MonoBehaviour
                 StartCoroutine(PerformAttack());
             }
 
-            SetRunning(false); // Stop running animation
+            SetRunning(false);
         }
         else
         {
@@ -73,11 +70,12 @@ public class Enemy : MonoBehaviour
             {
                 agent.isStopped = false;
                 agent.SetDestination(player.position);
-                SetRunning(true); // Start running animation
+                SetRunning(true);
             }
         }
     }
-    void SetRunning(bool value)
+
+    protected void SetRunning(bool value)
     {
         if (isRunning != value)
         {
@@ -85,15 +83,15 @@ public class Enemy : MonoBehaviour
             animator.SetBool("isRunning", isRunning);
         }
     }
-    System.Collections.IEnumerator PerformAttack()
+
+    protected virtual System.Collections.IEnumerator PerformAttack()
     {
         isAttacking = true;
         lastAttackTime = Time.time;
         animator.SetBool("isRunning", false);
         animator.SetTrigger("Attack");
 
-        // Optional: Wait for animation event instead
-        yield return new WaitForSeconds(0.5f); // adjust this to match animation timing
+        yield return new WaitForSeconds(0.5f); // Adjust to match animation
 
         float distance = Vector3.Distance(transform.position, player.position);
         if (distance <= attackRange)
@@ -108,7 +106,8 @@ public class Enemy : MonoBehaviour
         yield return new WaitForSeconds(attackCooldown - 0.5f);
         isAttacking = false;
     }
-    void OnTriggerEnter(Collider other)
+
+    protected virtual void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Bullet"))
         {
@@ -116,18 +115,18 @@ public class Enemy : MonoBehaviour
             if (bullet != null)
             {
                 TakeDamage(bullet.damage);
-                Destroy(other.gameObject); // destroy bullet on impact
+                Destroy(other.gameObject);
             }
         }
     }
-    public void TakeDamage(float amount)
+
+    public virtual void TakeDamage(float amount)
     {
         if (isDead) return;
 
         currentHealth -= amount;
         Debug.Log($"{gameObject.name} took {amount} damage. Remaining: {currentHealth}");
 
-        // 🩸 Spawn blood splatter
         if (bloodSplatterPrefab)
         {
             Instantiate(bloodSplatterPrefab, transform.position + Vector3.up * 1f, Quaternion.identity);
@@ -139,7 +138,7 @@ public class Enemy : MonoBehaviour
         }
     }
 
-    void Die()
+    protected virtual void Die()
     {
         isDead = true;
 
@@ -152,13 +151,12 @@ public class Enemy : MonoBehaviour
         if (deathEffectPrefab)
             Instantiate(deathEffectPrefab, transform.position, Quaternion.identity);
 
-        // Try dropping a health pack
         TryDropping();
 
-        Destroy(gameObject, 30f); // Destroy after 30 seconds
+        Destroy(gameObject, 30f);
     }
 
-    void EnableRagdoll(bool state)
+    protected void EnableRagdoll(bool state)
     {
         Rigidbody[] rigidbodies = GetComponentsInChildren<Rigidbody>();
         Collider[] colliders = GetComponentsInChildren<Collider>();
@@ -170,25 +168,21 @@ public class Enemy : MonoBehaviour
 
         foreach (Collider col in colliders)
         {
-            if (col.gameObject != gameObject) // avoid disabling main capsule if needed
+            if (col.gameObject != gameObject)
                 col.enabled = state;
         }
 
-        if (GetComponent<Collider>() != null)
-            GetComponent<Collider>().enabled = !state;
-
-        if (GetComponent<Rigidbody>() != null)
-            GetComponent<Rigidbody>().isKinematic = state;
+        if (TryGetComponent(out Collider mainCol)) mainCol.enabled = !state;
+        if (TryGetComponent(out Rigidbody mainRb)) mainRb.isKinematic = state;
     }
 
-    void TryDropping()
+    protected virtual void TryDropping()
     {
-        //This pickup heals the player
         if (healthPackPrefab != null && Random.value <= healthPackDropChance)
         {
             Instantiate(healthPackPrefab, transform.position, Quaternion.identity);
         }
-        //This pickup increases the maximum health of the player
+
         if (maxHealthIncreasePrefab != null && Random.value <= maxHealthIncreaseDropChance)
         {
             Instantiate(maxHealthIncreasePrefab, transform.position, Quaternion.identity);

@@ -37,7 +37,18 @@ public class PlayerHealth : MonoBehaviour
             Die();
         }
     }
-
+    void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("Projectile"))
+        {
+            Bullet b = other.GetComponent<Bullet>();
+            if (b != null)
+            {
+                TakeDamage(b.damage);
+                Destroy(other.gameObject);
+            }
+        }
+    }
     public void Heal(float amount)
     {
         if (isDead) return;

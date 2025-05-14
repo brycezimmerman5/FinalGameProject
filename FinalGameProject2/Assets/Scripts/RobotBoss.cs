@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.AI;
 using System.Collections;
+using UnityEngine.UI;
 
 public class RobotBoss : MonoBehaviour
 {
@@ -8,6 +9,9 @@ public class RobotBoss : MonoBehaviour
     public float maxHealth = 1000f;
     private float currentHealth;
     private bool isDead = false;
+    public float animSpeed = 1f;
+    public int numRangedAttacks;
+    public int numAttacks = 2;
 
     [Header("Attack Settings")]
     public float attackRange = 5f;
@@ -22,17 +26,20 @@ public class RobotBoss : MonoBehaviour
     public GameObject bloodSplatterPrefab;
     public GameObject blackHolePrefab;
     public Transform attackOrigin;
-
     private Transform player;
     private NavMeshAgent agent;
+
+    [Header("Movement Behavior")]
+    public float stopDistance = 5f;         // How far to stay from player
+    public float circleStrafeSpeed = 2f;    // Circle speed when within range
+    public float repositionFrequency = 4f;  // How often to reposition
+    private float repositionTimer;
 
     [Header("Phases")]
     public float phase2Threshold = 0.6f;
     public float phase3Threshold = 0.25f;
     private int currentPhase = 1;
-
     private bool isRunning = false;
-    public int numAttacks = 2;
 
     [Header("Laser Attack")]
     public GameObject laserPrefab;
@@ -44,13 +51,42 @@ public class RobotBoss : MonoBehaviour
     private float lastRangedAttackTime;
     public float timeBetweenLasers = 0.2f;
     public float laserForce = 1000f;
+
     [Header("Overheat")]
     public Renderer eyeRenderer; // assign glowing material
     public Color overheatColor = Color.red;
     public float glowIntensity = 5f;
     private bool hasOverheated = false;
+
+    [Header("Boulder Attack")]
+    public GameObject boulderPrefab;
+    public Transform boulderSpawnPoint;
+    public int bouldersToSpawn = 5;
+    public float boulderForce = 500f;
+    public GameObject groundImpactEffect;
+
+    [Header("Summon Ability")]
+    public GameObject enemyPrefab;
+    public float summonRadius = 10f;
+    public int maxSummonCount = 5;
+
+    [Header("Health UI")]
+    public Image healthBarFill;
+    public Canvas healthCanvas;
+
+    [Header("Foot Beam Attack (Phase 2 Loop)")]
+    public GameObject footBeamPrefab;
+    public Transform beamSpawnPoint;
+    public float footBeamForce = 800f;
+    public float beamInterval = 5f;
+
+    private Coroutine footBeamCoroutine;
+
+
+
     void Start()
     {
+        animator.speed = animSpeed;
         currentHealth = maxHealth;
         agent = GetComponent<NavMeshAgent>();
         if (!animator) animator = GetComponent<Animator>();
@@ -86,10 +122,11 @@ public class RobotBoss : MonoBehaviour
                 break;
 
             case 2: // Phase 2 – ranged and melee
+                TryOverheat();
                 HandleMovement();
                 TryMeleeAttack(distance);
                 TryRangedAttack(distance);
-                TryOverheat();
+                
                
                 break;
 
@@ -102,34 +139,117 @@ public class RobotBoss : MonoBehaviour
     }
     void TryOverheat()
     {
-        if (!hasOverheated)
+        if (!hasOverheated && !isLasering && !isAttacking)
         {
             animator.SetTrigger("Overheat");
-            //isAttacking = true;
+            isAttacking = true;
             hasOverheated = true;
+            AddStats();
         }
+    }
+    public void SummonMinions()
+    {
+        SpawnEnemiesInRadius(maxSummonCount, summonRadius);
+    }
+
+    public void SpawnEnemiesInRadius(int count, float radius)
+    {
+        if (enemyPrefab == null) return;
+
+        int spawned = 0;
+        int attempts = 0;
+
+        while (spawned < count && attempts < count * 5)
+        {
+            attempts++;
+
+            // Random direction on XZ plane
+            Vector2 circle = Random.insideUnitCircle.normalized * Random.Range(radius * 0.5f, radius);
+            Vector3 randomPos = transform.position + new Vector3(circle.x, 0, circle.y);
+
+            NavMeshHit hit;
+            if (NavMesh.SamplePosition(randomPos, out hit, 2f, NavMesh.AllAreas))
+            {
+                Instantiate(enemyPrefab, hit.position, Quaternion.identity);
+                spawned++;
+            }
+        }
+
+        Debug.Log($"Boss summoned {spawned} enemies in radius {radius}.");
+        isAttacking = false;
+        isLasering = false;
+
+    }
+
+    void AddStats()
+    {
+        animSpeed += 0.5f;
+        animator.speed = animSpeed;
+        attackCooldown -= 0.5f;
+        rangedAttackCooldown -= 2f;
+        timeBetweenLasers -= 0.1f;
     }
     void HandleMovement()
     {
-        if (!isAttacking && !isLasering)
+        if (player == null) return;
+
+        float distance = Vector3.Distance(transform.position, player.position);
+
+        // Always rotate to face the player
+        Vector3 lookDir = (player.position - transform.position).normalized;
+        lookDir.y = 0;
+        if (lookDir != Vector3.zero)
+        {
+            Quaternion rot = Quaternion.LookRotation(lookDir);
+            transform.rotation = Quaternion.Slerp(transform.rotation, rot, Time.deltaTime * 5f);
+        }
+
+        // Stop if attacking or lasering
+        if (isAttacking || isLasering)
+        {
+            agent.isStopped = true;
+            return;
+        }
+
+        // If far from player, path toward them
+        if (distance > stopDistance)
         {
             agent.isStopped = false;
             agent.SetDestination(player.position);
             SetRunning(agent.velocity.magnitude > 0.1f);
+            return;
         }
-        else if (!isLasering)
+
+        // Within stop distance: do circle-strafe movement
+        repositionTimer -= Time.deltaTime;
+        if (repositionTimer <= 0)
         {
-            agent.SetDestination(player.position);
+            repositionTimer = repositionFrequency;
+
+            // Pick a new lateral direction (left or right) with slight forward bias
+            Vector3 sideDir = Vector3.Cross(Vector3.up, player.position - transform.position).normalized;
+            if (Random.value > 0.5f) sideDir *= -1f;
+
+            Vector3 newTarget = transform.position + sideDir * 3f + lookDir * 2f;
+            NavMeshHit hit;
+            if (NavMesh.SamplePosition(newTarget, out hit, 3f, NavMesh.AllAreas))
+            {
+                agent.SetDestination(hit.position);
+                agent.isStopped = false;
+            }
         }
+
+        SetRunning(agent.velocity.magnitude > 0.1f);
     }
+
 
     void TryRangedAttack(float distance)
     {
         if (!isAttacking && distance <= rangedAttackRange && distance > attackRange && Time.time - lastRangedAttackTime >= rangedAttackCooldown)
         {
             SetRunning(false);
-            agent.speed = Mathf.Max(agent.speed - 4f, 0f);
-            animator.SetTrigger("Attack2");
+            //agent.speed = Mathf.Max(agent.speed - 4f, 0f);
+            animator.SetTrigger("RangedAttack"+Random.Range(1,numRangedAttacks+1));
             isAttacking = true;
             lastRangedAttackTime = Time.time;
         }
@@ -140,7 +260,7 @@ public class RobotBoss : MonoBehaviour
         if (!isAttacking && distance <= attackRange && Time.time - lastMeleeAttackTime >= attackCooldown)
         {
             SetRunning(false);
-            animator.SetTrigger("Attack1");
+            animator.SetTrigger("Attack" + Random.Range(1, numAttacks + 1));
             isAttacking = true;
             lastMeleeAttackTime = Time.time;
         }
@@ -149,9 +269,10 @@ public class RobotBoss : MonoBehaviour
     {
         if (laserCoroutine == null)
         {
-            laserCoroutine = StartCoroutine(LaserAttackLoop());
             isLasering = true;
             isAttacking = true;
+            laserCoroutine = StartCoroutine(LaserAttackLoop());
+            
             Debug.Log("Laser attack started.");
         }
     }
@@ -165,17 +286,23 @@ public class RobotBoss : MonoBehaviour
         }
         isLasering = false;
         isAttacking = false;
-        agent.speed += 4f;
+        //agent.speed += 4f;
         Debug.Log("Laser attack stopped.");
     }
 
     private IEnumerator LaserAttackLoop()
     {
-        while (true)
+        while (isLasering && !isDead && player != null)
         {
             FireLaser();
             yield return new WaitForSeconds(timeBetweenLasers);
         }
+
+        // Ensure clean exit
+        laserCoroutine = null;
+        isLasering = false;
+        isAttacking = false;
+        Debug.Log("Laser loop exited safely.");
     }
 
     private void FireLaser()
@@ -191,6 +318,43 @@ public class RobotBoss : MonoBehaviour
             Destroy(laser, 5f);
         }
     }
+    private void ShootFootBeams()
+    {
+        if (footBeamPrefab == null || beamSpawnPoint == null) return;
+
+        Vector3[] directions = new Vector3[]
+        {
+        transform.forward,
+        -transform.forward,
+        transform.right,
+        -transform.right
+        };
+
+        foreach (var dir in directions)
+        {
+            GameObject beam = Instantiate(footBeamPrefab, beamSpawnPoint.position, Quaternion.LookRotation(dir));
+            Rigidbody rb = beam.GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.velocity = dir.normalized * footBeamForce;
+            }
+
+            Destroy(beam, 6f);
+        }
+
+        Debug.Log("Boss fired 4 foot beams.");
+    }
+
+    private IEnumerator FootBeamLoop()
+    {
+        while (currentPhase == 2 && !isDead)
+        {
+            ShootFootBeams();
+            yield return new WaitForSeconds(beamInterval);
+        }
+
+        footBeamCoroutine = null;
+    }
 
     void CheckPhase()
     {
@@ -204,6 +368,10 @@ public class RobotBoss : MonoBehaviour
         else if (hpPercent <= phase2Threshold && currentPhase < 2)
         {
             currentPhase = 2;
+            if (footBeamCoroutine == null)
+            {
+                footBeamCoroutine = StartCoroutine(FootBeamLoop());
+            }
             Debug.Log("Phase 2 reached. No dash ability now.");
         }
     }
@@ -236,10 +404,38 @@ public class RobotBoss : MonoBehaviour
             PlayerHealth hp = player.GetComponent<PlayerHealth>();
             if (hp != null) hp.TakeDamage(attackDamage);
         }
-
+        //LaunchBoulders(); // ← call it here
         StartCoroutine(EndAttackCooldown());
     }
+    private void LaunchBoulders()
+    {
+        if (boulderPrefab == null || boulderSpawnPoint == null) return;
+        if (groundImpactEffect != null)
+        {
+            Instantiate(groundImpactEffect, boulderSpawnPoint.position, Quaternion.identity);
+        }
+        float angleStep = 360f / bouldersToSpawn;
 
+        for (int i = 0; i < bouldersToSpawn; i++)
+        {
+            float angle = i * angleStep;
+            Vector3 horizontalDir = Quaternion.Euler(0, angle, 0) * Vector3.forward;
+            Vector3 launchDir = (horizontalDir + Vector3.up * 0.75f).normalized; // upward arc
+
+            GameObject boulder = Instantiate(boulderPrefab, boulderSpawnPoint.position, Quaternion.identity);
+            Rigidbody rb = boulder.GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+                rb.interpolation = RigidbodyInterpolation.Interpolate;
+                rb.AddForce(launchDir * boulderForce);
+            }
+
+            Destroy(boulder, 10f);
+        }
+
+        Debug.Log($"{bouldersToSpawn} boulders launched into the air.");
+    }
     public void TriggerBlackHole()
     {
         if (blackHolePrefab && attackOrigin)
@@ -260,10 +456,18 @@ public class RobotBoss : MonoBehaviour
         if (isDead) return;
 
         currentHealth -= amount;
+        if (healthBarFill != null)
+        {
+            healthBarFill.fillAmount = currentHealth / maxHealth;
+        }
+
         Debug.Log($"RobotBoss took {amount} damage. Remaining: {currentHealth}");
 
         if (bloodSplatterPrefab)
-            Instantiate(bloodSplatterPrefab, transform.position + Vector3.up * 1f, Quaternion.identity);
+        {
+            GameObject go = Instantiate(bloodSplatterPrefab, transform.position + Vector3.up * 1f, Quaternion.identity);
+            Destroy(go, 2);
+        }
 
         if (currentHealth <= 0)
             Die();
@@ -278,7 +482,11 @@ public class RobotBoss : MonoBehaviour
 
         if (deathEffectPrefab)
             Instantiate(deathEffectPrefab, transform.position, Quaternion.identity);
-
+        if (footBeamCoroutine != null)
+        {
+            StopCoroutine(footBeamCoroutine);
+            footBeamCoroutine = null;
+        }
         Destroy(gameObject, 30f);
     }
 
