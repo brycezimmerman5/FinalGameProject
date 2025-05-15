@@ -37,12 +37,19 @@ public class PlayerController : MonoBehaviour
     private float lastDashTime;
     private bool isDashing = false;
 
+    [Header("Audio")]
+    public AudioClip shootClip;       
+    private AudioSource audioSource;  // added sound
+
     void Start()
     {
         controller = GetComponent<CharacterController>();
         animator = GetComponent<Animator>();
         cam = Camera.main;
         currentAmmo = maxAmmo;
+
+        audioSource = GetComponent<AudioSource>(); // added sound
+
     }
 
     void Update()
@@ -106,6 +113,12 @@ public class PlayerController : MonoBehaviour
     {
         lastShotTime = Time.time;
         currentAmmo--;
+
+        if (shootClip != null && audioSource != null)
+        {
+            audioSource.PlayOneShot(shootClip);
+        } // added sound
+
 
         GameObject bullet = Instantiate(bulletPrefab, shootPoint.position, shootPoint.rotation);
         Rigidbody rb = bullet.GetComponent<Rigidbody>();
