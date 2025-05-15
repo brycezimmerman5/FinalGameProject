@@ -2690,7 +2690,7 @@ NavMeshAgent:
   m_GameObject: {fileID: 6881789525356672976}
   m_Enabled: 1
   m_AgentTypeID: 0
-  m_Radius: 0.81
+  m_Radius: 0.4
   m_Speed: 6
   m_Acceleration: 8
   avoidancePriority: 50
@@ -2736,7 +2736,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 35ef960455524ed4997a9b3cd739e191, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxHealth: 200
+  maxHealth: 150
   attackRange: 3.5
   attackDamage: 15
   attackCooldown: 3

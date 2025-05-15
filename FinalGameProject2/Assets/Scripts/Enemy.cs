@@ -139,7 +139,8 @@ public class Enemy : MonoBehaviour
 
         if (bloodSplatterPrefab)
         {
-            Instantiate(bloodSplatterPrefab, transform.position + Vector3.up * 1f, Quaternion.identity);
+            GameObject splatter = Instantiate(bloodSplatterPrefab, transform.position + Vector3.up * 1f, Quaternion.identity);
+            Destroy(splatter, 2f);
         }
 
         if (currentHealth <= 0)
@@ -162,6 +163,9 @@ public class Enemy : MonoBehaviour
             Instantiate(deathEffectPrefab, transform.position, Quaternion.identity);
 
         TryDropping();
+
+        // Notify listeners of death
+        OnEnemyDeath?.Invoke();
 
         Destroy(gameObject, 30f);
     }
@@ -198,4 +202,8 @@ public class Enemy : MonoBehaviour
             Instantiate(maxHealthIncreasePrefab, transform.position, Quaternion.identity);
         }
     }
+
+    // Event that WaveSpawner can subscribe to
+    public delegate void EnemyDeathHandler();
+    public event EnemyDeathHandler OnEnemyDeath;
 }

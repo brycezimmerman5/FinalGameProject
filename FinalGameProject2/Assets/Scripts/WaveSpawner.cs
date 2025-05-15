@@ -31,6 +31,15 @@ public class WaveSpawner : MonoBehaviour
     [Header("Wave Settings")]
     public float timeBetweenWaves = 5f;
 
+    // Event that other scripts can subscribe to
+    public delegate void WaveCompletionHandler();
+    public event WaveCompletionHandler OnAllWavesCompleted;
+
+    // Public boolean that teleporter can check
+    public bool wavesCompleted = false;
+    public int activeEnemies = 0;
+    private bool allWavesSpawned = false;
+
     void Start()
     {
         StartCoroutine(BeginWaves());
@@ -44,10 +53,22 @@ public class WaveSpawner : MonoBehaviour
         {
             yield return StartCoroutine(SpawnWave(waves[currentWaveIndex]));
             currentWaveIndex++;
-            yield return new WaitForSeconds(timeBetweenWaves);
+            
+            if (currentWaveIndex < waves.Length)
+            {
+                yield return new WaitForSeconds(timeBetweenWaves);
+            }
         }
 
-        Debug.Log("All waves completed.");
+        allWavesSpawned = true;
+        Debug.Log("All waves spawned! Waiting for enemies to be defeated...");
+        
+        // Check if there are no enemies left (in case they died during wave spawning)
+        if (activeEnemies <= 0)
+        {
+            wavesCompleted = true;
+            Debug.Log("All waves completed and all enemies defeated! Teleporter is now active.");
+        }
     }
 
     IEnumerator SpawnWave(Wave wave)
@@ -110,11 +131,28 @@ public class WaveSpawner : MonoBehaviour
 
         if (GetRandomPointOnNavMesh(centerPoint, spawnRadius, out spawnPos))
         {
-            Instantiate(enemyPrefab, spawnPos, Quaternion.identity);
+            GameObject enemy = Instantiate(enemyPrefab, spawnPos, Quaternion.identity);
+            Enemy enemyComponent = enemy.GetComponent<Enemy>();
+            if (enemyComponent != null)
+            {
+                activeEnemies++;
+                // Subscribe to enemy death
+                enemyComponent.OnEnemyDeath += HandleEnemyDeath;
+            }
         }
         else
         {
             Debug.LogWarning("Failed to find NavMesh position for enemy spawn.");
+        }
+    }
+
+    private void HandleEnemyDeath()
+    {
+        activeEnemies--;
+        if (allWavesSpawned && activeEnemies <= 0)
+        {
+            wavesCompleted = true;
+            Debug.Log("All waves completed and all enemies defeated! Teleporter is now active.");
         }
     }
 

@@ -1846,6 +1846,7 @@ MonoBehaviour:
   projectileSpawnPoint: {fileID: 5608684199116367662}
   fireCooldown: 2
   timeBetweenFire: 0.2
+  bulletForce: 15
   strafeDistance: 2
   strafeIntervalMin: 1.5
   strafeIntervalMax: 3.5
