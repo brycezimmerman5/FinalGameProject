@@ -10,6 +10,7 @@ public class WaveSpawner : MonoBehaviour
     {
         public GameObject enemyPrefab;
         public int count;
+        public float spawnRate = 1f; // Time in seconds between spawns
     }
 
     [System.Serializable]
@@ -17,7 +18,6 @@ public class WaveSpawner : MonoBehaviour
     {
         public string waveName;
         public EnemyEntry[] enemies;
-        public float spawnRate;
     }
 
     public Wave[] waves;
@@ -59,7 +59,7 @@ public class WaveSpawner : MonoBehaviour
             for (int i = 0; i < entry.count; i++)
             {
                 SpawnEnemy(entry.enemyPrefab);
-                yield return new WaitForSeconds(1f / wave.spawnRate);
+                yield return new WaitForSeconds(entry.spawnRate);
             }
         }
     }

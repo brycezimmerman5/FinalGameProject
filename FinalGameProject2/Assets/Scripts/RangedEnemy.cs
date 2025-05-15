@@ -9,6 +9,7 @@ public class RangedEnemy : Enemy
     public Transform projectileSpawnPoint;
     public float fireCooldown = 0.3f;
     public float timeBetweenFire = 1f;
+    public float bulletForce = 20f;
 
     private bool isShooting = false;
     private Coroutine shootCoroutine;
@@ -102,8 +103,6 @@ public class RangedEnemy : Enemy
             agent.SetDestination(hit.position);
             SetRunning(true);
         }
-
-        Debug.Log($"{gameObject.name} strafed {(strafeDirection.x > 0 ? "right" : "left")}.");
     }
 
     private IEnumerator FireRepeatedly()
@@ -129,7 +128,7 @@ public class RangedEnemy : Enemy
             if (rb != null)
             {
                 Vector3 dir = (player.position + Vector3.up * 1f - projectileSpawnPoint.position).normalized;
-                rb.velocity = dir * 20f;
+                rb.velocity = dir * bulletForce;
             }
         }
     }

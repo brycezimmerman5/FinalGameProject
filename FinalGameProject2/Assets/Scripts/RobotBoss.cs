@@ -12,6 +12,14 @@ public class RobotBoss : MonoBehaviour
     public float animSpeed = 1f;
     public int numRangedAttacks;
     public int numAttacks = 2;
+    private bool hasStartedFight = false;
+
+    [Header("Intro Animation")]
+    public float introDuration = 3f;
+    public float introRotationSpeed = 2f;
+    public float introHeight = 2f;
+    private Vector3 startPosition;
+    private Quaternion startRotation;
 
     [Header("Attack Settings")]
     public float attackRange = 5f;
@@ -39,6 +47,8 @@ public class RobotBoss : MonoBehaviour
     public float dashCooldown = 5f;
     private float lastDashTime;
     private bool isDashing = false;
+    public float dashDamage = 30f;
+    public float dashKnockbackForce = 500f;
     public float teleportCooldown = 10f;
     private float lastTeleportTime;
     public float teleportRange = 20f;
@@ -117,11 +127,63 @@ public class RobotBoss : MonoBehaviour
         if (playerObj) player = playerObj.transform;
 
         EnableRagdoll(false);
+        
+        // Store initial position and rotation
+        startPosition = transform.position;
+        startRotation = transform.rotation;
+        
+        // Start intro sequence
+        StartCoroutine(PlayIntroSequence());
+    }
+
+    IEnumerator PlayIntroSequence()
+    {
+        // Disable agent during intro
+        agent.enabled = false;
+        
+        // Play intro animation
+        animator.SetTrigger("Intro");
+        
+        // Rotate and rise up
+        float elapsed = 0f;
+        while (elapsed < introDuration)
+        {
+            elapsed += Time.deltaTime;
+            float progress = elapsed / introDuration;
+            
+            // Rotate
+            transform.Rotate(Vector3.up, introRotationSpeed * 360f * Time.deltaTime);
+            
+            // Rise up
+            transform.position = startPosition + Vector3.up * (introHeight * Mathf.Sin(progress * Mathf.PI));
+            
+            yield return null;
+        }
+        
+        // Return to original position
+        transform.position = startPosition;
+        transform.rotation = startRotation;
+        
+        // Enable agent and start fight
+        agent.enabled = true;
+        hasStartedFight = true;
     }
 
     void Update()
     {
-        if (isDead || player == null) return;
+        if (isDead || player == null || !hasStartedFight) return;
+
+        // Always rotate to face player, even during attacks
+        if (player != null)
+        {
+            Vector3 lookDir = (player.position - transform.position).normalized;
+            lookDir.y = 0;
+            if (lookDir != Vector3.zero)
+            {
+                Quaternion rot = Quaternion.LookRotation(lookDir);
+                transform.rotation = Quaternion.Slerp(transform.rotation, rot, Time.deltaTime * 5f);
+            }
+        }
 
         CheckPhase();
         float distance = Vector3.Distance(transform.position, player.position);
@@ -160,13 +222,9 @@ public class RobotBoss : MonoBehaviour
     {
         if (!isAttacking && !isLasering && !isDashing)
         {
-            if (Random.value < 0.3f && Time.time - lastDashTime >= dashCooldown)
+            if (Random.value < 0.4f && Time.time - lastDashTime >= dashCooldown)
             {
                 StartCoroutine(PerformDash());
-            }
-            else if (Random.value < 0.2f && Time.time - lastTeleportTime >= teleportCooldown)
-            {
-                TeleportToRandomPosition();
             }
             else
             {
@@ -181,9 +239,13 @@ public class RobotBoss : MonoBehaviour
     {
         if (!isAttacking && !isLasering && !isDashing)
         {
-            if (Random.value < 0.4f && Time.time - lastDashTime >= dashCooldown)
+            if (Random.value < 0.5f && Time.time - lastDashTime >= dashCooldown)
             {
                 StartCoroutine(PerformDash());
+            }
+            else if (Random.value < 0.3f && Time.time - lastShieldTime >= shieldCooldown)
+            {
+                ActivateShield();
             }
             else if (Random.value < 0.3f && Time.time - lastShockwaveTime >= shockwaveCooldown)
             {
@@ -203,11 +265,7 @@ public class RobotBoss : MonoBehaviour
     {
         if (!isAttacking && !isLasering && !isDashing)
         {
-            if (Random.value < 0.5f && Time.time - lastTeleportTime >= teleportCooldown)
-            {
-                TeleportToRandomPosition();
-            }
-            else if (Random.value < 0.4f && Time.time - lastDashTime >= dashCooldown)
+            if (Random.value < 0.6f && Time.time - lastDashTime >= dashCooldown)
             {
                 StartCoroutine(PerformDash());
             }
@@ -226,11 +284,13 @@ public class RobotBoss : MonoBehaviour
 
     void RandomizeBehavior()
     {
-        // Randomly change attack patterns and movement
-        attackCooldown = Random.Range(1.5f, 3f);
-        rangedAttackCooldown = Random.Range(3f, 6f);
-        timeBetweenLasers = Random.Range(0.1f, 0.3f);
-        stopDistance = Random.Range(4f, 7f);
+        // Randomly change attack patterns and movement with small variations
+        float variation = 0.2f; // 20% variation
+        
+        attackCooldown = Mathf.Clamp(attackCooldown * Random.Range(1f - variation, 1f + variation), 1f, 5f);
+        rangedAttackCooldown = Mathf.Clamp(rangedAttackCooldown * Random.Range(1f - variation, 1f + variation), 2f, 8f);
+        timeBetweenLasers = Mathf.Clamp(timeBetweenLasers * Random.Range(1f - variation, 1f + variation), 0.1f, 0.5f);
+        stopDistance = Mathf.Clamp(stopDistance * Random.Range(1f - variation, 1f + variation), 3f, 8f);
     }
 
     void TeleportToRandomPosition()
@@ -255,9 +315,34 @@ public class RobotBoss : MonoBehaviour
         Vector3 dashDirection = (player.position - transform.position).normalized;
         float elapsed = 0f;
 
+        // Trigger dash animation
+        animator.SetTrigger("Dash");
+
         while (elapsed < dashDuration)
         {
             agent.Move(dashDirection * dashSpeed * Time.deltaTime);
+            
+            // Check for player collision during dash
+            Collider[] hitColliders = Physics.OverlapSphere(transform.position, 2f);
+            foreach (var hitCollider in hitColliders)
+            {
+                if (hitCollider.CompareTag("Player"))
+                {
+                    // Apply damage and knockback
+                    PlayerHealth playerHealth = hitCollider.GetComponent<PlayerHealth>();
+                    if (playerHealth != null)
+                    {
+                        playerHealth.TakeDamage(dashDamage);
+                    }
+
+                    Rigidbody playerRb = hitCollider.GetComponent<Rigidbody>();
+                    if (playerRb != null)
+                    {
+                        playerRb.AddForce(dashDirection * dashKnockbackForce);
+                    }
+                }
+            }
+
             elapsed += Time.deltaTime;
             yield return null;
         }
@@ -368,15 +453,6 @@ public class RobotBoss : MonoBehaviour
 
         float distance = Vector3.Distance(transform.position, player.position);
 
-        // Always rotate to face the player
-        Vector3 lookDir = (player.position - transform.position).normalized;
-        lookDir.y = 0;
-        if (lookDir != Vector3.zero)
-        {
-            Quaternion rot = Quaternion.LookRotation(lookDir);
-            transform.rotation = Quaternion.Slerp(transform.rotation, rot, Time.deltaTime * 5f);
-        }
-
         // Stop if attacking or lasering
         if (isAttacking || isLasering)
         {
@@ -403,7 +479,7 @@ public class RobotBoss : MonoBehaviour
             Vector3 sideDir = Vector3.Cross(Vector3.up, player.position - transform.position).normalized;
             if (Random.value > 0.5f) sideDir *= -1f;
 
-            Vector3 newTarget = transform.position + sideDir * 3f + lookDir * 2f;
+            Vector3 newTarget = transform.position + sideDir * 3f + (player.position - transform.position).normalized * 2f;
             NavMeshHit hit;
             if (NavMesh.SamplePosition(newTarget, out hit, 3f, NavMesh.AllAreas))
             {
@@ -520,7 +596,7 @@ public class RobotBoss : MonoBehaviour
 
     private IEnumerator FootBeamLoop()
     {
-        while (currentPhase == 2 && !isDead)
+        while ((currentPhase == 2 || currentPhase ==3) && !isDead)
         {
             ShootFootBeams();
             yield return new WaitForSeconds(beamInterval);

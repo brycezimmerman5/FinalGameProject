@@ -37,6 +37,7 @@ public class Enemy : MonoBehaviour
 
         if (!animator) animator = GetComponent<Animator>();
         agent = GetComponent<NavMeshAgent>();
+        agent.updateRotation = false; // Disable agent's rotation control
 
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
         if (playerObj != null)
@@ -50,6 +51,15 @@ public class Enemy : MonoBehaviour
     protected virtual void Update()
     {
         if (isDead || player == null) return;
+
+        // Always rotate to face player
+        Vector3 direction = (player.position - transform.position).normalized;
+        direction.y = 0f;
+        if (direction != Vector3.zero)
+        {
+            Quaternion lookRotation = Quaternion.LookRotation(direction);
+            transform.rotation = Quaternion.Slerp(transform.rotation, lookRotation, Time.deltaTime * 5f);
+        }
 
         float distance = Vector3.Distance(transform.position, player.position);
 

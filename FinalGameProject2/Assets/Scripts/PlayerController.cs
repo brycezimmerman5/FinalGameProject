@@ -113,6 +113,7 @@ public class PlayerController : MonoBehaviour
         rb.AddForce(bullet.transform.forward * bulletForce);
 
         // animator.SetTrigger("Shoot");
+        Destroy(bullet, 0.7f);
         Debug.Log("Shot fired. Ammo remaining: " + currentAmmo);
     }
 
@@ -148,7 +149,22 @@ public class PlayerController : MonoBehaviour
         isDashing = true;
         lastDashTime = Time.time;
 
-        Vector3 dashDir = -transform.forward;
+        // Get movement direction from input
+        float h = Input.GetAxisRaw("Horizontal");
+        float v = Input.GetAxisRaw("Vertical");
+        Vector3 dashDir;
+
+        // If there's movement input, use that direction
+        if (Mathf.Abs(h) > 0.1f || Mathf.Abs(v) > 0.1f)
+        {
+            dashDir = new Vector3(h, 0, v).normalized;
+        }
+        else
+        {
+            // If no movement input, dash forward
+            dashDir = transform.forward;
+        }
+
         float elapsed = 0f;
 
         while (elapsed < dashDuration)
