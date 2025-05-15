@@ -101,7 +101,15 @@ public class Enemy : MonoBehaviour
         animator.SetBool("isRunning", false);
         animator.SetTrigger("Attack");
 
-        yield return new WaitForSeconds(0.5f); // Adjust to match animation
+        // Wait for the full attack cooldown
+        yield return new WaitForSeconds(attackCooldown);
+        isAttacking = false;
+    }
+
+    // This will be called by the animation event
+    public void DealDamage()
+    {
+        if (isDead || player == null) return;
 
         float distance = Vector3.Distance(transform.position, player.position);
         if (distance <= attackRange)
@@ -112,9 +120,6 @@ public class Enemy : MonoBehaviour
                 playerHealth.TakeDamage(attackDamage);
             }
         }
-
-        yield return new WaitForSeconds(attackCooldown - 0.5f);
-        isAttacking = false;
     }
 
     protected virtual void OnTriggerEnter(Collider other)

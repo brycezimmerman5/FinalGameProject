@@ -78,8 +78,14 @@ public class PlayerHealth : MonoBehaviour
     {
         if (isDead) return;
 
+        // Calculate the percentage of current health before increasing max
+        float healthPercentage = currentHealth / maxHealth;
+        
+        // Increase max health
         maxHealth += amount;
-        currentHealth = maxHealth;
+        
+        // Set current health to maintain the same percentage
+        currentHealth = maxHealth * healthPercentage;
 
         // Update UI
         UIhealth.Instance.AddHealth();
