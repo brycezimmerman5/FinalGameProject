@@ -13,4 +13,4 @@ MonoBehaviour:
   m_Name: FasterFireRate
   m_EditorClassIdentifier: 
   type: 3
-  value: 0.1
+  value: 0.05

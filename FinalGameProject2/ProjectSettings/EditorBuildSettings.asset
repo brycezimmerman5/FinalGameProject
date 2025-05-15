@@ -6,9 +6,12 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/FirstLevel.unity
+    path: Assets/Scenes/FirstLevel(Civilian).unity
     guid: cafaeb3aca8b1294ab596a26668df750
   - enabled: 1
     path: Assets/Scenes/City.unity
     guid: 33ea0eabe378ff44da5c46a0a7e2a817
+  - enabled: 1
+    path: Assets/Scenes/Military.unity
+    guid: 880420dcb7931444aa8188a4654593c6
   m_configObjects: {}
