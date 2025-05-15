@@ -1,4 +1,7 @@
 ﻿using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
+using System.Collections;
 
 public class PlayerController : MonoBehaviour
 {
@@ -37,9 +40,9 @@ public class PlayerController : MonoBehaviour
     private float lastDashTime;
     private bool isDashing = false;
 
-    [Header("Audio")]
-    public AudioClip shootClip;       
-    private AudioSource audioSource;  // added sound
+    [Header("UI References")]
+    public TextMeshProUGUI powerUpText;
+    public float notificationDuration = 2f;
 
     void Start()
     {
@@ -47,9 +50,6 @@ public class PlayerController : MonoBehaviour
         animator = GetComponent<Animator>();
         cam = Camera.main;
         currentAmmo = maxAmmo;
-
-        audioSource = GetComponent<AudioSource>(); // added sound
-
     }
 
     void Update()
@@ -113,12 +113,6 @@ public class PlayerController : MonoBehaviour
     {
         lastShotTime = Time.time;
         currentAmmo--;
-
-        if (shootClip != null && audioSource != null)
-        {
-            audioSource.PlayOneShot(shootClip);
-        } // added sound
-
 
         GameObject bullet = Instantiate(bulletPrefab, shootPoint.position, shootPoint.rotation);
         Rigidbody rb = bullet.GetComponent<Rigidbody>();
@@ -229,7 +223,22 @@ public class PlayerController : MonoBehaviour
                 break;
         }
 
-        Debug.Log($"Applied Power-Up: {powerUp.type} +{powerUp.value}");
+        ShowPowerUpNotification(powerUp);
     }
 
+    private void ShowPowerUpNotification(PowerUp powerUp)
+    {
+        if (powerUpText != null)
+        {
+            powerUpText.text = $"Power-Up: {powerUp.type} +{powerUp.value}";
+            powerUpText.gameObject.SetActive(true);
+            StartCoroutine(HideNotification());
+        }
+    }
+
+    private IEnumerator HideNotification()
+    {
+        yield return new WaitForSeconds(notificationDuration);
+        powerUpText.gameObject.SetActive(false);
+    }
 }
