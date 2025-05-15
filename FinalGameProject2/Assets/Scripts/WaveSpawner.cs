@@ -54,13 +54,53 @@ public class WaveSpawner : MonoBehaviour
     {
         Debug.Log("Spawning Wave: " + wave.waveName);
 
+        // Create a list to track remaining enemies for each type
+        List<EnemyEntry> remainingEnemies = new List<EnemyEntry>();
         foreach (var entry in wave.enemies)
         {
-            for (int i = 0; i < entry.count; i++)
+            remainingEnemies.Add(new EnemyEntry
             {
-                SpawnEnemy(entry.enemyPrefab);
-                yield return new WaitForSeconds(entry.spawnRate);
+                enemyPrefab = entry.enemyPrefab,
+                count = entry.count,
+                spawnRate = entry.spawnRate
+            });
+        }
+
+        // Track last spawn time for each enemy type
+        Dictionary<GameObject, float> lastSpawnTimes = new Dictionary<GameObject, float>();
+
+        // Continue until all enemies are spawned
+        while (remainingEnemies.Count > 0)
+        {
+            float currentTime = Time.time;
+
+            // Check each enemy type
+            for (int i = remainingEnemies.Count - 1; i >= 0; i--)
+            {
+                var entry = remainingEnemies[i];
+                
+                // Initialize last spawn time if not set
+                if (!lastSpawnTimes.ContainsKey(entry.enemyPrefab))
+                {
+                    lastSpawnTimes[entry.enemyPrefab] = -entry.spawnRate;
+                }
+
+                // Check if it's time to spawn this enemy type
+                if (currentTime - lastSpawnTimes[entry.enemyPrefab] >= entry.spawnRate)
+                {
+                    SpawnEnemy(entry.enemyPrefab);
+                    lastSpawnTimes[entry.enemyPrefab] = currentTime;
+                    entry.count--;
+
+                    // Remove entry if all enemies of this type are spawned
+                    if (entry.count <= 0)
+                    {
+                        remainingEnemies.RemoveAt(i);
+                    }
+                }
             }
+
+            yield return null; // Wait for next frame
         }
     }
 
