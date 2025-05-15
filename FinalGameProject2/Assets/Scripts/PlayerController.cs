@@ -1,4 +1,7 @@
 ﻿using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
+using System.Collections;
 
 public class PlayerController : MonoBehaviour
 {
@@ -36,6 +39,10 @@ public class PlayerController : MonoBehaviour
     public float dashCooldown = 2f;
     private float lastDashTime;
     private bool isDashing = false;
+
+    [Header("UI References")]
+    public TextMeshProUGUI powerUpText;
+    public float notificationDuration = 2f;
 
     void Start()
     {
@@ -216,7 +223,22 @@ public class PlayerController : MonoBehaviour
                 break;
         }
 
-        Debug.Log($"Applied Power-Up: {powerUp.type} +{powerUp.value}");
+        ShowPowerUpNotification(powerUp);
     }
 
+    private void ShowPowerUpNotification(PowerUp powerUp)
+    {
+        if (powerUpText != null)
+        {
+            powerUpText.text = $"Power-Up: {powerUp.type} +{powerUp.value}";
+            powerUpText.gameObject.SetActive(true);
+            StartCoroutine(HideNotification());
+        }
+    }
+
+    private IEnumerator HideNotification()
+    {
+        yield return new WaitForSeconds(notificationDuration);
+        powerUpText.gameObject.SetActive(false);
+    }
 }

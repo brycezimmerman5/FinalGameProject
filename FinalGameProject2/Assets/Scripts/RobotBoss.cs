@@ -100,7 +100,7 @@ public class RobotBoss : MonoBehaviour
     public float footBeamForce = 800f;
     public float beamInterval = 5f;
 
-    [Header("New Abilities")]
+    [Header("Defensive Abilities")]
     public GameObject shieldPrefab;
     public float shieldDuration = 5f;
     public float shieldCooldown = 15f;
@@ -116,6 +116,11 @@ public class RobotBoss : MonoBehaviour
     private Coroutine currentMovementCoroutine;
 
     void Start()
+    {
+        InitializeBoss();
+    }
+
+    void InitializeBoss()
     {
         animator.speed = animSpeed;
         currentHealth = maxHealth;
@@ -144,25 +149,8 @@ public class RobotBoss : MonoBehaviour
         // Play intro animation
         animator.SetTrigger("Intro");
         
-        // Rotate and rise up
-        float elapsed = 0f;
-        while (elapsed < introDuration)
-        {
-            elapsed += Time.deltaTime;
-            float progress = elapsed / introDuration;
-            
-            // Rotate
-            transform.Rotate(Vector3.up, introRotationSpeed * 360f * Time.deltaTime);
-            
-            // Rise up
-            transform.position = startPosition + Vector3.up * (introHeight * Mathf.Sin(progress * Mathf.PI));
-            
-            yield return null;
-        }
-        
-        // Return to original position
-        transform.position = startPosition;
-        transform.rotation = startRotation;
+        // Wait for animation to complete
+        yield return new WaitForSeconds(introDuration);
         
         // Enable agent and start fight
         agent.enabled = true;
@@ -173,7 +161,26 @@ public class RobotBoss : MonoBehaviour
     {
         if (isDead || player == null || !hasStartedFight) return;
 
-        // Always rotate to face player, even during attacks
+        // Always rotate to face player
+        RotateTowardsPlayer();
+
+        CheckPhase();
+        float distance = Vector3.Distance(transform.position, player.position);
+
+        // Phase change timer
+        phaseChangeTimer += Time.deltaTime;
+        if (phaseChangeTimer >= phaseChangeInterval)
+        {
+            phaseChangeTimer = 0f;
+            RandomizeBehavior();
+        }
+
+        // Handle phase-specific behavior
+        HandlePhaseBehavior(distance);
+    }
+
+    void RotateTowardsPlayer()
+    {
         if (player != null)
         {
             Vector3 lookDir = (player.position - transform.position).normalized;
@@ -184,26 +191,10 @@ public class RobotBoss : MonoBehaviour
                 transform.rotation = Quaternion.Slerp(transform.rotation, rot, Time.deltaTime * 5f);
             }
         }
+    }
 
-        CheckPhase();
-        float distance = Vector3.Distance(transform.position, player.position);
-
-        if (isLasering && player != null)
-        {
-            Vector3 dir = (player.position - transform.position).normalized;
-            dir.y = 0f;
-            Quaternion rot = Quaternion.LookRotation(dir);
-            transform.rotation = Quaternion.Slerp(transform.rotation, rot, Time.deltaTime * 5f);
-        }
-
-        // Phase change timer
-        phaseChangeTimer += Time.deltaTime;
-        if (phaseChangeTimer >= phaseChangeInterval)
-        {
-            phaseChangeTimer = 0f;
-            RandomizeBehavior();
-        }
-
+    void HandlePhaseBehavior(float distance)
+    {
         switch (currentPhase)
         {
             case 1:
@@ -494,10 +485,11 @@ public class RobotBoss : MonoBehaviour
 
     void TryRangedAttack(float distance)
     {
-        if (!isAttacking && distance <= rangedAttackRange && distance > attackRange && Time.time - lastRangedAttackTime >= rangedAttackCooldown)
+        if (isAttacking || isLasering || isDashing) return; // Don't start new attacks if already attacking
+
+        if (distance <= rangedAttackRange && distance > attackRange && Time.time - lastRangedAttackTime >= rangedAttackCooldown)
         {
             SetRunning(false);
-            //agent.speed = Mathf.Max(agent.speed - 4f, 0f);
             animator.SetTrigger("RangedAttack"+Random.Range(1,numRangedAttacks+1));
             isAttacking = true;
             lastRangedAttackTime = Time.time;
@@ -506,7 +498,9 @@ public class RobotBoss : MonoBehaviour
 
     void TryMeleeAttack(float distance)
     {
-        if (!isAttacking && distance <= attackRange && Time.time - lastMeleeAttackTime >= attackCooldown)
+        if (isAttacking || isLasering || isDashing) return; // Don't start new attacks if already attacking
+
+        if (distance <= attackRange && Time.time - lastMeleeAttackTime >= attackCooldown)
         {
             SetRunning(false);
             animator.SetTrigger("Attack" + Random.Range(1, numAttacks + 1));
@@ -535,7 +529,6 @@ public class RobotBoss : MonoBehaviour
         }
         isLasering = false;
         isAttacking = false;
-        //agent.speed += 4f;
         Debug.Log("Laser attack stopped.");
     }
 
@@ -698,6 +691,7 @@ public class RobotBoss : MonoBehaviour
     {
         yield return new WaitForSeconds(attackCooldown);
         isAttacking = false;
+        isLasering = false; // Also reset laser state
     }
 
     public void TakeDamage(float amount)
