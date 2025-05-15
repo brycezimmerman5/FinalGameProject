@@ -10,6 +10,10 @@ public class PlayerHealth : MonoBehaviour
     public GameObject deathEffectPrefab;
     public Animator animator;
 
+    [Header("Audio")]
+    public AudioClip hitSound;
+    private AudioSource audioSource;
+
     private bool isDead = false;
 
     void Start()
@@ -18,6 +22,8 @@ public class PlayerHealth : MonoBehaviour
 
         if (!animator)
             animator = GetComponent<Animator>();
+
+        audioSource = GetComponent<AudioSource>();
     }
 
     public void TakeDamage(float amount)
@@ -25,6 +31,12 @@ public class PlayerHealth : MonoBehaviour
         if (isDead) return;
 
         currentHealth -= amount;
+        
+        if (hitSound != null && audioSource != null)
+        {
+            audioSource.PlayOneShot(hitSound); // play sound
+        }
+
         //For UI
         UIhealth.Instance.TakeDamage(amount / 10);
         Debug.Log($"Player took {amount} damage. Current health: {currentHealth}");
