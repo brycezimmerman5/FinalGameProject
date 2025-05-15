@@ -115,9 +115,26 @@ public class RobotBoss : MonoBehaviour
     private Coroutine footBeamCoroutine;
     private Coroutine currentMovementCoroutine;
 
+    [Header("Audio")]
+    public AudioSource audioSource;
+    public AudioClip boulderLaunchSound;
+    public AudioClip laserFireSound;
+    [Range(0f, 1f)] public float boulderVolume = 0.7f;
+    [Range(0f, 1f)] public float laserVolume = 0.8f;
+
     void Start()
     {
         InitializeBoss();
+        
+        // Get or add AudioSource if not assigned
+        if (audioSource == null)
+        {
+            audioSource = GetComponent<AudioSource>();
+            if (audioSource == null)
+            {
+                audioSource = gameObject.AddComponent<AudioSource>();
+            }
+        }
     }
 
     void InitializeBoss()
@@ -320,11 +337,11 @@ public class RobotBoss : MonoBehaviour
                 if (hitCollider.CompareTag("Player"))
                 {
                     // Apply damage and knockback
-                    PlayerHealth playerHealth = hitCollider.GetComponent<PlayerHealth>();
-                    if (playerHealth != null)
-                    {
-                        playerHealth.TakeDamage(dashDamage);
-                    }
+                    //PlayerHealth playerHealth = hitCollider.GetComponent<PlayerHealth>();
+                    //if (playerHealth != null)
+                    //{
+                    //    playerHealth.TakeDamage(dashDamage);
+                    //}
 
                     Rigidbody playerRb = hitCollider.GetComponent<Rigidbody>();
                     if (playerRb != null)
@@ -557,6 +574,13 @@ public class RobotBoss : MonoBehaviour
             {
                 rb.AddForce(laserSpawnPoint.forward * laserForce);
             }
+            
+            // Play laser sound
+            if (audioSource && laserFireSound)
+            {
+                audioSource.PlayOneShot(laserFireSound, laserVolume);
+            }
+            
             Destroy(laser, 5f);
         }
     }
@@ -652,6 +676,13 @@ public class RobotBoss : MonoBehaviour
     private void LaunchBoulders()
     {
         if (boulderPrefab == null || boulderSpawnPoint == null) return;
+        
+        // Play boulder launch sound
+        if (audioSource && boulderLaunchSound)
+        {
+            audioSource.PlayOneShot(boulderLaunchSound, boulderVolume);
+        }
+
         if (groundImpactEffect != null)
         {
             Instantiate(groundImpactEffect, boulderSpawnPoint.position, Quaternion.identity);
