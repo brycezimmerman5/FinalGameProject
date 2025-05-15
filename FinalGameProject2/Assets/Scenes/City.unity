@@ -1128,13 +1128,21 @@ MonoBehaviour:
   - waveName: 1
     enemies:
     - enemyPrefab: {fileID: 5105004772603856847, guid: 1e8587f6f695825419e03e5b7aa10d45, type: 3}
-      count: 10
-      spawnRate: 4
+      count: 5
+      spawnRate: 6
+    - enemyPrefab: {fileID: 6881789525356672976, guid: 1365ecd05927fc446b4e97922bda3da0, type: 3}
+      count: 5
+      spawnRate: 6
+  - waveName: 1
+    enemies:
+    - enemyPrefab: {fileID: 5105004772603856847, guid: 1e8587f6f695825419e03e5b7aa10d45, type: 3}
+      count: 8
+      spawnRate: 8
     - enemyPrefab: {fileID: 6881789525356672976, guid: 1365ecd05927fc446b4e97922bda3da0, type: 3}
       count: 10
-      spawnRate: 4
+      spawnRate: 8
   centerPoint: {x: 50, y: 0, z: 50}
-  spawnRadius: 30
+  spawnRadius: 50
   timeBetweenWaves: 5
 --- !u!4 &361495848
 Transform:
@@ -2584,7 +2592,7 @@ Camera:
     height: 1
   near clip plane: 0.3
   far clip plane: 1000
-  field of view: 60
+  field of view: 70
   orthographic: 0
   orthographic size: 5
   m_Depth: -1
