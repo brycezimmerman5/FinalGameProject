@@ -538,6 +538,9 @@ MonoBehaviour:
   dashDistance: 5
   dashDuration: 0.25
   dashCooldown: 2
+  powerUpText: {fileID: 0}
+  notificationDuration: 2
+  shootClip: {fileID: 0}
 --- !u!95 &247464267
 Animator:
   serializedVersion: 5
@@ -601,6 +604,7 @@ MonoBehaviour:
   currentHealth: 0
   deathEffectPrefab: {fileID: 0}
   animator: {fileID: 247464267}
+  hitSound: {fileID: 0}
 --- !u!114 &247464271
 MonoBehaviour:
   m_ObjectHideFlags: 0
