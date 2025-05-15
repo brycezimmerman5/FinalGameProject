@@ -48,6 +48,11 @@ public class PlayerController : MonoBehaviour
     public AudioClip shootClip;         
     private AudioSource audioSource; 
 
+    [Header("Footstep Audio")]
+    public AudioClip footstepClip;
+    public float stepInterval = 0.5f; 
+    private float stepTimer;
+
     void Start()
     {
         controller = GetComponent<CharacterController>();
@@ -73,6 +78,7 @@ public class PlayerController : MonoBehaviour
         HandleShootInput();
         HandleReloadInput();
         UpdateAnimationStates();
+        HandleFootsteps();
     }
 
     void HandleMovement()
@@ -201,6 +207,31 @@ public class PlayerController : MonoBehaviour
         bool isMoving = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical")).magnitude > 0.1f;
         animator.SetBool("isRunning", isMoving);
     }
+
+    void HandleFootsteps()
+    {
+        bool isMoving = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical")).magnitude > 0.1f;
+
+        if (isMoving && controller.isGrounded && !isDashing)
+        {
+            stepTimer += Time.deltaTime;
+
+            if (stepTimer >= stepInterval)
+            {
+                if (footstepClip != null && audioSource != null)
+                {
+                    audioSource.PlayOneShot(footstepClip);
+                }
+
+                stepTimer = 0f;
+            }
+        }
+        else
+        {
+            stepTimer = stepInterval; // reset when idle
+        }
+    }
+
     public void ApplyPowerUp(PowerUp powerUp)
     {
         switch (powerUp.type)
@@ -237,6 +268,8 @@ public class PlayerController : MonoBehaviour
 
         ShowPowerUpNotification(powerUp);
     }
+
+    
 
     private void ShowPowerUpNotification(PowerUp powerUp)
     {
