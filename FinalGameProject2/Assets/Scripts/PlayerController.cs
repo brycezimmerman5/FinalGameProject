@@ -44,12 +44,18 @@ public class PlayerController : MonoBehaviour
     public TextMeshProUGUI powerUpText;
     public float notificationDuration = 2f;
 
+    [Header("Audio")]
+    public AudioClip shootClip;         
+    private AudioSource audioSource; 
+
     void Start()
     {
         controller = GetComponent<CharacterController>();
         animator = GetComponent<Animator>();
         cam = Camera.main;
         currentAmmo = maxAmmo;
+
+        audioSource = GetComponent<AudioSource>();
     }
 
     void Update()
@@ -113,6 +119,12 @@ public class PlayerController : MonoBehaviour
     {
         lastShotTime = Time.time;
         currentAmmo--;
+
+        if (shootClip != null && audioSource != null)
+        {
+            audioSource.PlayOneShot(shootClip);
+        }
+
 
         GameObject bullet = Instantiate(bulletPrefab, shootPoint.position, shootPoint.rotation);
         Rigidbody rb = bullet.GetComponent<Rigidbody>();
