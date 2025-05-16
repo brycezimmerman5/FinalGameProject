@@ -101,11 +101,6 @@ public class RobotBoss : MonoBehaviour
     public float beamInterval = 5f;
 
     [Header("Defensive Abilities")]
-    public GameObject shieldPrefab;
-    public float shieldDuration = 5f;
-    public float shieldCooldown = 15f;
-    private float lastShieldTime;
-    private bool isShielded = false;
     public GameObject shockwavePrefab;
     public float shockwaveCooldown = 8f;
     private float lastShockwaveTime;
@@ -228,6 +223,7 @@ public class RobotBoss : MonoBehaviour
 
     void HandlePhase1Behavior(float distance)
     {
+        // Only handle movement if not in any attack state
         if (!isAttacking && !isLasering && !isDashing)
         {
             if (Random.value < 0.4f && Time.time - lastDashTime >= dashCooldown)
@@ -239,21 +235,23 @@ public class RobotBoss : MonoBehaviour
                 HandleMovement();
             }
         }
-        TryMeleeAttack(distance);
-        TryRangedAttack(distance);
+        
+        // Only try attacks if not already attacking
+        if (!isAttacking && !isLasering && !isDashing)
+        {
+            TryMeleeAttack(distance);
+            TryRangedAttack(distance);
+        }
     }
 
     void HandlePhase2Behavior(float distance)
     {
+        // Only handle movement if not in any attack state
         if (!isAttacking && !isLasering && !isDashing)
         {
             if (Random.value < 0.5f && Time.time - lastDashTime >= dashCooldown)
             {
                 StartCoroutine(PerformDash());
-            }
-            else if (Random.value < 0.3f && Time.time - lastShieldTime >= shieldCooldown)
-            {
-                ActivateShield();
             }
             else if (Random.value < 0.3f && Time.time - lastShockwaveTime >= shockwaveCooldown)
             {
@@ -264,13 +262,19 @@ public class RobotBoss : MonoBehaviour
                 HandleMovement();
             }
         }
-        TryOverheat();
-        TryMeleeAttack(distance);
-        TryRangedAttack(distance);
+        
+        // Only try attacks if not already attacking
+        if (!isAttacking && !isLasering && !isDashing)
+        {
+            TryOverheat();
+            TryMeleeAttack(distance);
+            TryRangedAttack(distance);
+        }
     }
 
     void HandlePhase3Behavior(float distance)
     {
+        // Only handle movement if not in any attack state
         if (!isAttacking && !isLasering && !isDashing)
         {
             if (Random.value < 0.6f && Time.time - lastDashTime >= dashCooldown)
@@ -286,8 +290,13 @@ public class RobotBoss : MonoBehaviour
                 HandleMovement();
             }
         }
-        TryRangedAttack(distance);
-        TryMeleeAttack(distance);
+        
+        // Only try attacks if not already attacking
+        if (!isAttacking && !isLasering && !isDashing)
+        {
+            TryRangedAttack(distance);
+            TryMeleeAttack(distance);
+        }
     }
 
     void RandomizeBehavior()
@@ -356,25 +365,6 @@ public class RobotBoss : MonoBehaviour
         }
 
         isDashing = false;
-    }
-
-    void ActivateShield()
-    {
-        if (shieldPrefab != null)
-        {
-            GameObject shield = Instantiate(shieldPrefab, transform.position, Quaternion.identity);
-            shield.transform.parent = transform;
-            isShielded = true;
-            lastShieldTime = Time.time;
-            StartCoroutine(DeactivateShield(shield));
-        }
-    }
-
-    IEnumerator DeactivateShield(GameObject shield)
-    {
-        yield return new WaitForSeconds(shieldDuration);
-        isShielded = false;
-        Destroy(shield);
     }
 
     void PerformShockwave()
@@ -502,26 +492,41 @@ public class RobotBoss : MonoBehaviour
 
     void TryRangedAttack(float distance)
     {
-        if (isAttacking || isLasering || isDashing) return; // Don't start new attacks if already attacking
+        // Check if we're in any attack state
+        if (isAttacking || isLasering || isDashing) 
+        {
+            return;
+        }
 
+        // Check if we're in range and cooldown is ready
         if (distance <= rangedAttackRange && distance > attackRange && Time.time - lastRangedAttackTime >= rangedAttackCooldown)
         {
+            // Set attack state BEFORE triggering animation
+            isAttacking = true;
+            isLasering = true;
+            
             SetRunning(false);
             animator.SetTrigger("RangedAttack"+Random.Range(1,numRangedAttacks+1));
-            isAttacking = true;
             lastRangedAttackTime = Time.time;
         }
     }
 
     void TryMeleeAttack(float distance)
     {
-        if (isAttacking || isLasering || isDashing) return; // Don't start new attacks if already attacking
+        // Check if we're in any attack state
+        if (isAttacking || isLasering || isDashing) 
+        {
+            return;
+        }
 
+        // Check if we're in range and cooldown is ready
         if (distance <= attackRange && Time.time - lastMeleeAttackTime >= attackCooldown)
         {
+            // Set attack state BEFORE triggering animation
+            isAttacking = true;
+            
             SetRunning(false);
             animator.SetTrigger("Attack" + Random.Range(1, numAttacks + 1));
-            isAttacking = true;
             lastMeleeAttackTime = Time.time;
         }
     }
@@ -544,6 +549,7 @@ public class RobotBoss : MonoBehaviour
             StopCoroutine(laserCoroutine);
             laserCoroutine = null;
         }
+        // Reset all attack states
         isLasering = false;
         isAttacking = false;
         Debug.Log("Laser attack stopped.");
@@ -721,8 +727,9 @@ public class RobotBoss : MonoBehaviour
     IEnumerator EndAttackCooldown()
     {
         yield return new WaitForSeconds(attackCooldown);
+        // Reset all attack states
         isAttacking = false;
-        isLasering = false; // Also reset laser state
+        isLasering = false;
     }
 
     public void TakeDamage(float amount)

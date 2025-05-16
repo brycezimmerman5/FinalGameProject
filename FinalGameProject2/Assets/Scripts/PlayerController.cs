@@ -275,7 +275,9 @@ public class PlayerController : MonoBehaviour
     {
         if (powerUpText != null)
         {
-            powerUpText.text = $"Power-Up: {powerUp.type} +{powerUp.value}";
+            string formattedValue = powerUp.value.ToString("F1");
+            string powerUpType = powerUp.type.ToString().Replace("_", " ");
+            powerUpText.text = $" {powerUpType} + {formattedValue}";
             powerUpText.gameObject.SetActive(true);
             StartCoroutine(HideNotification());
         }

@@ -46,16 +46,23 @@ public class UIhealth : MonoBehaviour
     }
 
     //INCREASES MAX HEALTH
+    //INCREASES MAX HEALTH
     public void AddHealth()
     {
         if (maxHealth < maxTotalHealth)
         {
+            // Calculate current health percentage
+            float healthPercentage = health / maxHealth;
+
+            // Increase max health
             maxHealth += 1;
-            health = maxHealth;
+
+            // Set health to maintain the same percentage
+            health = maxHealth * healthPercentage;
 
             if (onHealthChangedCallback != null)
                 onHealthChangedCallback.Invoke();
-        }   
+        }
     }
 
     void ClampHealth()
