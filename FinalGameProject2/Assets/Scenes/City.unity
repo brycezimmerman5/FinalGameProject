@@ -768,6 +768,8 @@ MonoBehaviour:
   powerUpText: {fileID: 730932850}
   notificationDuration: 2
   shootClip: {fileID: 8300000, guid: 92f732d0ecb8d4c79b5668d3d1e961e7, type: 3}
+  footstepClip: {fileID: 0}
+  stepInterval: 0.5
 --- !u!95 &247464267
 Animator:
   serializedVersion: 5
@@ -1067,18 +1069,18 @@ MonoBehaviour:
   - waveName: 1
     enemies:
     - enemyPrefab: {fileID: 5105004772603856847, guid: 1e8587f6f695825419e03e5b7aa10d45, type: 3}
-      count: 1
+      count: 7
       spawnRate: 6
     - enemyPrefab: {fileID: 6881789525356672976, guid: 1365ecd05927fc446b4e97922bda3da0, type: 3}
-      count: 1
+      count: 8
       spawnRate: 6
   - waveName: 1
     enemies:
     - enemyPrefab: {fileID: 5105004772603856847, guid: 1e8587f6f695825419e03e5b7aa10d45, type: 3}
-      count: 1
+      count: 9
       spawnRate: 8
     - enemyPrefab: {fileID: 6881789525356672976, guid: 1365ecd05927fc446b4e97922bda3da0, type: 3}
-      count: 1
+      count: 10
       spawnRate: 8
   centerPoint: {x: 50, y: 0, z: 50}
   spawnRadius: 50

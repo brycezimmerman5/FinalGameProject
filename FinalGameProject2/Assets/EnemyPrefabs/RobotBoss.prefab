@@ -2933,13 +2933,15 @@ MonoBehaviour:
   beamSpawnPoint: {fileID: 0}
   footBeamForce: 800
   beamInterval: 5
-  shieldPrefab: {fileID: 0}
-  shieldDuration: 5
-  shieldCooldown: 15
   shockwavePrefab: {fileID: 0}
   shockwaveCooldown: 8
   shockwaveRadius: 10
   shockwaveForce: 1000
+  audioSource: {fileID: 0}
+  boulderLaunchSound: {fileID: 0}
+  laserFireSound: {fileID: 0}
+  boulderVolume: 0.7
+  laserVolume: 0.8
 --- !u!1 &7597713711640706261
 GameObject:
   m_ObjectHideFlags: 0
